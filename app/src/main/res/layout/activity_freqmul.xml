@@ -6,12 +6,10 @@
     android:orientation="vertical"
     android:padding="12dp">
 
-    <!-- Choix du répertoire racine -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal">
-
         <TextView
             android:id="@+id/text_root_path"
             android:layout_width="0dp"
@@ -20,7 +18,6 @@
             android:text="(root path)"
             android:textSize="12sp"
             android:maxLines="2" />
-
         <Button
             android:id="@+id/button_root_rep"
             android:layout_width="wrap_content"
@@ -28,26 +25,22 @@
             android:text="Dossier" />
     </LinearLayout>
 
-    <!-- Liste MP3 + commandes -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:layout_marginTop="8dp">
-
         <Button
             android:id="@+id/button_list_mp3"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Lister" />
-
         <Button
             android:id="@+id/button_play_random"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:text="Random" />
-
         <Button
             android:id="@+id/button_stop"
             android:layout_width="wrap_content"
@@ -59,29 +52,33 @@
     <ListView
         android:id="@+id/list_mp3"
         android:layout_width="match_parent"
-        android:layout_height="140dp"
+        android:layout_height="120dp"
         android:layout_marginTop="8dp" />
 
-    <!-- Caméra -->
+    <Button
+        android:id="@+id/button_toggle_speech"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="Speech: OFF"
+        android:backgroundTint="#888888" />
+
     <FrameLayout
         android:id="@+id/cam_container"
         android:layout_width="match_parent"
-        android:layout_height="220dp"
+        android:layout_height="180dp"
         android:layout_marginTop="10dp" />
 
-    <!-- Config caméra -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:layout_marginTop="8dp">
-
         <Spinner
             android:id="@+id/spinner_resolution"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1" />
-
         <Spinner
             android:id="@+id/spinner_fps"
             android:layout_width="0dp"
@@ -97,20 +94,17 @@
         android:layout_marginTop="6dp"
         android:text="Stabilisation" />
 
-    <!-- Commandes enregistrement -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:layout_marginTop="8dp">
-
         <Button
             android:id="@+id/button_record"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:text="REC" />
-
         <Button
             android:id="@+id/button_stop_rec"
             android:layout_width="0dp"
@@ -120,14 +114,6 @@
             android:text="STOP" />
     </LinearLayout>
 
-    <!-- Journal / transcription (SCROLLABLE) -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
-        android:text="Console"
-        android:textStyle="bold" />
-
     <ScrollView
         android:id="@+id/scroll_transcript"
         android:layout_width="match_parent"
@@ -135,15 +121,11 @@
         android:layout_weight="1"
         android:fillViewport="true"
         android:layout_marginTop="6dp">
-
         <TextView
             android:id="@+id/text_transcript"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="12sp"
-            android:textIsSelectable="true"
-            android:padding="8dp"
-            android:text="" />
+            android:padding="8dp" />
     </ScrollView>
-
 </LinearLayout>

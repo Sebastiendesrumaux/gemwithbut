@@ -1,6 +1,6 @@
 # 1. Création de l'archive .tgz (tar + gzip)
-tar -cvzf syng.tgz .
+tar -cvzf freqmul.tgz .
 
 # 2. Copie vers le dossier Downloads du téléphone
-cp syng.tgz ~/storage/downloads/
+cp freqmul.tgz ~/storage/downloads/
 
