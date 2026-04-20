@@ -1,0 +1,33 @@
+# === ANDROID BUILD OUTPUTS ===
+/build/
+/app/build/
+/.gradle/
+/local.properties
+
+# === ANDROID/IDE METADATA ===
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# === LOGS & CACHE ===
+*.log
+*.cache
+*.tmp
+
+# === APKs, AABs, GENERATED BUNDLES ===
+*.apk
+*.ap_
+*.aab
+
+# === ANDROID STUDIO SPECIFIC ===
+captures/
+.externalNativeBuild/
+.cxx/
+
+# === BACKUP FILES ===
+*~
+*.swp
+
+# === MISC ===
+.DS_Store
