@@ -38,7 +38,7 @@
     <LinearLayout
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:layout_marginTop="16dp">
-        <Button android:id="@+id/button_play_all" android:layout_width="0dp" android:layout_height="70dp" android:layout_weight="1" android:text="PLAY ALL" android:backgroundTint="#1976D2" />
+        <Button android:id="@+id/button_play_all" android:layout_width="0dp" android:layout_height="70dp" android:layout_weight="1" android:text="ALL" android:backgroundTint="#1976D2" />
         <Button android:id="@+id/button_play_random" android:layout_width="0dp" android:layout_height="70dp" android:layout_weight="2" android:text="RANDOM" android:backgroundTint="#2E7D32" />
         <Button android:id="@+id/button_next" android:layout_width="0dp" android:layout_height="70dp" android:layout_weight="1" android:text="NEXT" android:backgroundTint="#FF9800" android:layout_marginStart="4dp" />
         <Button android:id="@+id/button_stop" android:layout_width="0dp" android:layout_height="70dp" android:layout_weight="1" android:text="STOP" android:backgroundTint="#C62828" android:layout_marginStart="8dp" />
