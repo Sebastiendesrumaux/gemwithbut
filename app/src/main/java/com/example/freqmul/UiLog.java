@@ -31,20 +31,29 @@ public class UiLog {
                 Button btnName = convertView.findViewById(R.id.btn_copy_name);
                 tv.setText(line);
                 
-                final String path = line.contains(" : ") ? line.split(" : ")[1] : line;
-                final String fileName = new File(path).getName();
+                // Détection : est-ce une ligne de fichier (contient " : ") ?
+                if (line.contains(" : ")) {
+                    btnFull.setVisibility(View.VISIBLE);
+                    btnName.setVisibility(View.VISIBLE);
+                    
+                    final String path = line.split(" : ")[1];
+                    final String fileName = new File(path).getName();
+                    ClipboardManager cm = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
 
-                ClipboardManager cm = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
+                    btnFull.setOnClickListener(v -> {
+                        cm.setPrimaryClip(ClipData.newPlainText("full", path));
+                        Toast.makeText(activity, "Full path copied!", Toast.LENGTH_SHORT).show();
+                    });
 
-                btnFull.setOnClickListener(v -> {
-                    cm.setPrimaryClip(ClipData.newPlainText("full", path));
-                    Toast.makeText(activity, "Full path copied!", Toast.LENGTH_SHORT).show();
-                });
-
-                btnName.setOnClickListener(v -> {
-                    cm.setPrimaryClip(ClipData.newPlainText("name", fileName));
-                    Toast.makeText(activity, "Filename copied!", Toast.LENGTH_SHORT).show();
-                });
+                    btnName.setOnClickListener(v -> {
+                        cm.setPrimaryClip(ClipData.newPlainText("name", fileName));
+                        Toast.makeText(activity, "Filename copied!", Toast.LENGTH_SHORT).show();
+                    });
+                } else {
+                    // C'est une info système, on cache les boutons
+                    btnFull.setVisibility(View.GONE);
+                    btnName.setVisibility(View.GONE);
+                }
 
                 return convertView;
             }
