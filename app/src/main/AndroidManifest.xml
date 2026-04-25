@@ -4,8 +4,8 @@
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <application
         android:allowBackup="true"
-        android:icon="@android:drawable/sym_def_app_icon"
-        android:label="Trésor Freq"
+        android:icon="@drawable/icon"
+        android:label="Bouddha Player (Escape from 440hz)"
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.DayNight.NoActionBar">
         <activity android:name=".freqmul" android:exported="true">
