@@ -13,7 +13,7 @@ public class freqmul extends AppCompatActivity {
     private static final String PREFS_NAME = "freqmul_prefs";
     private static final String KEY_MUL_MIN = "mul_min", KEY_MUL_MAX = "mul_max", KEY_ROOT_PATH = "root_path";
     private EditText editMulMin, editMulMax;
-    private TextView textRootPath, textTranscript;
+    private TextView textRootPath;
     private Mp3play mp3play;
     private String rootPath;
     private final ArrayList<String> mp3List = new ArrayList<>();
@@ -32,8 +32,9 @@ public class freqmul extends AppCompatActivity {
         editMulMin = findViewById(R.id.edit_mul_min);
         editMulMax = findViewById(R.id.edit_mul_max);
         textRootPath = findViewById(R.id.text_root_path);
-        textTranscript = findViewById(R.id.text_transcript);
-        UiLog.init(this, textTranscript, findViewById(R.id.scroll_transcript));
+        
+        // Initialisation de la ListView de LOG via UiLog
+        UiLog.init(this, findViewById(R.id.list_log));
 
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         rootPath = prefs.getString(KEY_ROOT_PATH, "/sdcard/Music");

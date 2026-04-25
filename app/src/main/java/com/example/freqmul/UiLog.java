@@ -1,39 +1,53 @@
 package com.example.freqmul;
 
 import android.app.Activity;
+import android.content.ClipboardManager;
+import android.content.ClipData;
 import android.content.Context;
-import android.widget.ScrollView;
-import android.widget.TextView;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.*;
+import java.util.ArrayList;
 
 public class UiLog {
-
     private static Activity activity;
-    private static TextView textView;
-    private static ScrollView scrollView;
+    private static ListView listView;
+    private static ArrayList<String> logLines = new ArrayList<>();
+    private static ArrayAdapter<String> adapter;
 
-    public static void init(Activity act, TextView tv, ScrollView sv) {
+    public static void init(Activity act, ListView lv) {
         activity = act;
-        textView = tv;
-        scrollView = sv;
+        listView = lv;
+        adapter = new ArrayAdapter<String>(act, R.layout.list_item_log, logLines) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                if (convertView == null) {
+                    convertView = activity.getLayoutInflater().inflate(R.layout.list_item_log, parent, false);
+                }
+                String line = getItem(position);
+                TextView tv = convertView.findViewById(R.id.log_text);
+                Button btn = convertView.findViewById(R.id.btn_copy);
+                tv.setText(line);
+                
+                final String path = line.contains(" : ") ? line.split(" : ")[1] : line;
+
+                btn.setOnClickListener(v -> {
+                    ClipboardManager cm = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
+                    cm.setPrimaryClip(ClipData.newPlainText("path", path));
+                    Toast.makeText(activity, "Path copied to clipboard!", Toast.LENGTH_SHORT).show();
+                });
+                return convertView;
+            }
+        };
+        listView.setAdapter(adapter);
     }
 
     public static void log(String msg) {
-        if (activity == null || textView == null) return;
-
+        if (activity == null || adapter == null) return;
         activity.runOnUiThread(() -> {
-            textView.append(msg + "\n");
-            if (scrollView != null) {
-                scrollView.post(() -> scrollView.fullScroll(ScrollView.FOCUS_DOWN));
-            }
+            logLines.add(msg);
+            adapter.notifyDataSetChanged();
+            listView.setSelection(adapter.getCount() - 1);
         });
-    }
-
-    // Compatibilité avec anciens appels UiToast.show(this, msg)
-    public static void log(Context ctx, String msg) {
-        log(msg);
-    }
-
-    public static void log(Activity act, String msg) {
-        log(msg);
     }
 }
