@@ -59,7 +59,13 @@ public class freqmul extends AppCompatActivity {
         findViewById(R.id.button_reset_freq).setOnClickListener(v -> {
             editMulMin.setText(String.valueOf(DEFAULT_MIN));
             editMulMax.setText(String.valueOf(DEFAULT_MAX));
-            UiLog.log("Frequencies reset.");
+            UiLog.log("Frequencies reset (1/2 tone).");
+        });
+
+        findViewById(R.id.button_440).setOnClickListener(view -> {
+            editMulMin.setText("1.0");
+            editMulMax.setText("1.0");
+            UiLog.log("Frequency anchored at 440Hz (ratio 1.0).");
         });
 
         findViewById(R.id.button_list_mp3).setOnClickListener(v -> {
@@ -75,6 +81,7 @@ public class freqmul extends AppCompatActivity {
             currentTrackIndex = 0;
             playTrackAtIndex(currentTrackIndex);
         });
+
         findViewById(R.id.button_play_random).setOnClickListener(v -> {
             isSequentialMode = false;
             try {
@@ -86,7 +93,10 @@ public class freqmul extends AppCompatActivity {
 
         findViewById(R.id.button_next).setOnClickListener(v -> playNext());
         findViewById(R.id.button_stop).setOnClickListener(v -> mp3play.stop());
-        findViewById(R.id.button_root_rep).setOnClickListener(v -> { mp3play.stop(); startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), 1001); });
+        findViewById(R.id.button_root_rep).setOnClickListener(v -> { 
+            mp3play.stop(); 
+            startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), 1001); 
+        });
     }
 
     @Override
@@ -109,20 +119,21 @@ public class freqmul extends AppCompatActivity {
                 rootPath = "/sdcard/" + DocumentsContract.getTreeDocumentId(uri).split(":")[1];
                 textRootPath.setText(rootPath);
                 mp3play = new Mp3play(this, rootPath);
-        mp3play.setListener(path -> {
-            if (isSequentialMode) {
-                currentTrackIndex++;
-                if (currentTrackIndex < mp3List.size()) {
-                    playTrackAtIndex(currentTrackIndex);
-                } else {
-                    UiLog.log("Fin de la liste.");
-                }
-            }
-        });
+                mp3play.setListener(path -> {
+                    if (isSequentialMode) {
+                        currentTrackIndex++;
+                        if (currentTrackIndex < mp3List.size()) {
+                            playTrackAtIndex(currentTrackIndex);
+                        } else {
+                            UiLog.log("Fin de la liste.");
+                        }
+                    }
+                });
                 UiLog.log("New folder: " + rootPath);
             }
         }
     }
+
     private void playTrackAtIndex(int index) {
         if (mp3List == null || mp3List.isEmpty() || index >= mp3List.size()) return;
         try {
@@ -130,6 +141,7 @@ public class freqmul extends AppCompatActivity {
             mp3play.playFile(mp3List.get(index));
         } catch (Exception e) { UiLog.log("Sequential play error"); }
     }
+
     private void playNext() {
         if (isSequentialMode) {
             currentTrackIndex++;
