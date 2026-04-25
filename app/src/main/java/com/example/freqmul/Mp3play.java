@@ -78,7 +78,7 @@ public class Mp3play {
             // ------------------------
 
             mediaPlayer.start();
-            UiLog.log("Playing (x" + String.format("%.4f", k) + ") : " + new File(path).getName());
+            UiLog.log("Playing (x" + String.format("%.4f", k) + ") : " + path);
         } catch (Exception e) {
             UiLog.log("Player Error: " + e.getMessage());
         }
