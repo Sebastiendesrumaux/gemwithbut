@@ -1,13 +1,15 @@
-env
+# On filtre l'env pour ne garder que l'essentiel et éviter le bruit
+env | grep -E 'PWD|PATH|ANDROID|JAVA|TERMUX' 
 pwd
-find . -type f \( \
+# On "prune" (élague) les dossiers inutiles et on cherche les sources vitales
+find . -type d \( -name "build" -o -name ".gradle" -o -name ".git" \) -prune -o \
+-type f \( \
   -name "*.java" -o \
-  -name "run.sh" -o \
-  -name "build.sh" -o \
-  -name "settings.gradle" -o \
-  -name "gradle.properties" -o \
-  -name "build.gradle" -o \
+  -name "*.sh" -o \
+  -name "*.gradle" -o \
+  -name "*.properties" -o \
   -name "AndroidManifest.xml" -o \
-  -name "activity_*.xml" \
+  -name "*.xml" \
+  -name "*.pro" \
 \) -print -exec sh -c 'echo "===== {} ====="; sed "s/^/    /" "{}"' \;
 
