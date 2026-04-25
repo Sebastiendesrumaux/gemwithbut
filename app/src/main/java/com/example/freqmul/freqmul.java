@@ -55,7 +55,7 @@ public class freqmul extends AppCompatActivity {
             mp3List.clear();
             if (mp3play.getList() != null) mp3List.addAll(mp3play.getList());
             adapter.notifyDataSetChanged();
-            UiLog.log(mp3List.size() + " morceaux indexés.");
+            UiLog.log(mp3List.size() + " fichiers musicaux indexés.");
         });
 
         findViewById(R.id.button_play_random).setOnClickListener(v -> {

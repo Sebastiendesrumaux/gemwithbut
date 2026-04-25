@@ -53,7 +53,7 @@ public class FileUtilsMp3 {
                 if (!f.getName().startsWith(".")) walk(f, out);
             } else {
                 String n = f.getName().toLowerCase();
-                if (n.endsWith(".mp3")) out.add(f.getAbsolutePath());
+                if (n.endsWith(".mp3") || n.endsWith(".flac") || n.endsWith(".wav") || n.endsWith(".ogg") || n.endsWith(".m4a")) out.add(f.getAbsolutePath());
             }
         }
     }
