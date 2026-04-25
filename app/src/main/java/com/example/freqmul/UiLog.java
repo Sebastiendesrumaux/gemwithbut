@@ -7,6 +7,7 @@ import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.*;
+import java.io.File;
 import java.util.ArrayList;
 
 public class UiLog {
@@ -26,16 +27,25 @@ public class UiLog {
                 }
                 String line = getItem(position);
                 TextView tv = convertView.findViewById(R.id.log_text);
-                Button btn = convertView.findViewById(R.id.btn_copy);
+                Button btnFull = convertView.findViewById(R.id.btn_copy_full);
+                Button btnName = convertView.findViewById(R.id.btn_copy_name);
                 tv.setText(line);
                 
                 final String path = line.contains(" : ") ? line.split(" : ")[1] : line;
+                final String fileName = new File(path).getName();
 
-                btn.setOnClickListener(v -> {
-                    ClipboardManager cm = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
-                    cm.setPrimaryClip(ClipData.newPlainText("path", path));
-                    Toast.makeText(activity, "Path copied to clipboard!", Toast.LENGTH_SHORT).show();
+                ClipboardManager cm = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
+
+                btnFull.setOnClickListener(v -> {
+                    cm.setPrimaryClip(ClipData.newPlainText("full", path));
+                    Toast.makeText(activity, "Full path copied!", Toast.LENGTH_SHORT).show();
                 });
+
+                btnName.setOnClickListener(v -> {
+                    cm.setPrimaryClip(ClipData.newPlainText("name", fileName));
+                    Toast.makeText(activity, "Filename copied!", Toast.LENGTH_SHORT).show();
+                });
+
                 return convertView;
             }
         };
