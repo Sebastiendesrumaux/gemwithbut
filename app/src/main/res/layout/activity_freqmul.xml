@@ -13,27 +13,32 @@
     <LinearLayout
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:layout_marginTop="8dp">
-        <Button android:id="@+id/button_list_mp3" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Update Music Files List" />
-        <Button android:id="@+id/button_root_rep" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Set Music Files Base Folder" android:layout_marginStart="4dp"/>
+        <Button android:id="@+id/button_list_mp3" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="UPDATE MUSIC FILES LIST" android:textSize="12sp" />
+        <Button android:id="@+id/button_root_rep" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1.5" android:text="SET MUSIC FILES BASE FOLDER" android:textSize="12sp" android:layout_marginStart="4dp"/>
     </LinearLayout>
 
     <ListView android:id="@+id/list_mp3" android:layout_width="match_parent" android:layout_height="150dp" android:layout_marginTop="8dp" android:divider="#333333" android:dividerHeight="1dp" />
 
+    <TextView 
+        android:layout_width="match_parent" android:layout_height="wrap_content" 
+        android:text="Per-track random frequency range :" android:textColor="#FFFFFF" 
+        android:layout_marginTop="16dp" android:textSize="14sp" />
+
     <LinearLayout
         android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="horizontal" android:layout_marginTop="16dp" android:gravity="center_vertical">
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Min:" android:textColor="#FFFFFF" />
+        android:orientation="horizontal" android:layout_marginTop="4dp" android:gravity="center_vertical">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Min:" android:textColor="#BBBBBB" />
         <EditText android:id="@+id/edit_mul_min" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="#00FF00" android:inputType="numberDecimal" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="Max:" android:textColor="#FFFFFF" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="Max:" android:textColor="#BBBBBB" />
         <EditText android:id="@+id/edit_mul_max" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="#00FF00" android:inputType="numberDecimal" />
     </LinearLayout>
 
-    <Button android:id="@+id/button_reset_freq" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Zen Reset (Demi-ton)" android:backgroundTint="#455A64" android:layout_marginTop="8dp" />
+    <Button android:id="@+id/button_reset_freq" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="ZEN RESET (DEMI-TON)" android:backgroundTint="#455A64" android:layout_marginTop="8dp" />
 
     <LinearLayout
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:orientation="horizontal" android:layout_marginTop="16dp">
-        <Button android:id="@+id/button_play_random" android:layout_width="0dp" android:layout_height="70dp" android:layout_weight="2" android:text="Random Play" android:backgroundTint="#2E7D32" />
+        <Button android:id="@+id/button_play_random" android:layout_width="0dp" android:layout_height="70dp" android:layout_weight="2" android:text="RANDOM PLAY" android:backgroundTint="#2E7D32" />
         <Button android:id="@+id/button_stop" android:layout_width="0dp" android:layout_height="70dp" android:layout_weight="1" android:text="STOP" android:backgroundTint="#C62828" android:layout_marginStart="8dp" />
     </LinearLayout>
 
