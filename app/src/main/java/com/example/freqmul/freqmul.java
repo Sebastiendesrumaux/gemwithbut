@@ -84,6 +84,7 @@ public class freqmul extends AppCompatActivity {
             } catch (Exception e) { UiLog.log("Erreur de saisie"); }
         });
 
+        findViewById(R.id.button_next).setOnClickListener(v -> playNext());
         findViewById(R.id.button_stop).setOnClickListener(v -> mp3play.stop());
         findViewById(R.id.button_root_rep).setOnClickListener(v -> { mp3play.stop(); startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), 1001); });
     }
@@ -128,5 +129,14 @@ public class freqmul extends AppCompatActivity {
             mp3play.setFrequencyBounds(Float.parseFloat(editMulMin.getText().toString()), Float.parseFloat(editMulMax.getText().toString()));
             mp3play.playFile(mp3List.get(index));
         } catch (Exception e) { UiLog.log("Erreur lecture séquentielle"); }
+    }
+    private void playNext() {
+        if (isSequentialMode) {
+            currentTrackIndex++;
+            if (mp3List != null && currentTrackIndex >= mp3List.size()) currentTrackIndex = 0;
+            playTrackAtIndex(currentTrackIndex);
+        } else {
+            mp3play.playRandom();
+        }
     }
 }
