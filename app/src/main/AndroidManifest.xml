@@ -1,36 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-
-    <!-- Permissions pour lire les fichiers musicaux -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.freqmul">
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
-
-    <!-- Permission microphone pour la reconnaissance vocale -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-
-    <!-- Permission caméra -->
-    <uses-permission android:name="android.permission.CAMERA" />
-
-    <!-- On indique que l'app peut utiliser n'importe quel type de caméra -->
-    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
-
     <application
         android:allowBackup="true"
         android:icon="@android:drawable/sym_def_app_icon"
-        android:roundIcon="@android:drawable/sym_def_app_icon"
-        android:label="freqmul"
+        android:label="Trésor Freq"
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.DayNight.NoActionBar">
-
-        <activity
-            android:name=".freqmul"
-            android:exported="true">
+        <activity android:name=".freqmul" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
     </application>
-
 </manifest>
