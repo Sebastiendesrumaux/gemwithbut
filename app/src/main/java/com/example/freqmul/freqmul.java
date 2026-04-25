@@ -22,8 +22,6 @@ public class freqmul extends AppCompatActivity {
     private ArrayAdapter<String> adapter;
     private int currentTrackIndex = 0;
     private boolean isSequentialMode = false;
-    
-    // LE VERROU
     private boolean isUpdatingProgrammatically = false;
 
     private final float DEFAULT_MIN = (float) Math.pow(2.0, -1.0/12.0);
@@ -60,13 +58,13 @@ public class freqmul extends AppCompatActivity {
             }
         });
 
-        // WATCHER AVEC VÉRIFICATION DU VERROU
+        // WATCHER AVEC LOG ACTIVÉ
         TextWatcher liveFreqWatcher = new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
             @Override public void afterTextChanged(Editable s) {
                 if (!isUpdatingProgrammatically && s.length() > 0 && !s.toString().equals(".") && !s.toString().equals("-")) {
-                    applyFreqAndRestart(false);
+                    applyFreqAndRestart(true); // ON LOGUE ICI AUSSI
                 }
             }
         };
@@ -75,11 +73,11 @@ public class freqmul extends AppCompatActivity {
         editMulMax.addTextChangedListener(liveFreqWatcher);
 
         findViewById(R.id.button_reset_freq).setOnClickListener(v -> {
-            isUpdatingProgrammatically = true; // On ferme le verrou
+            isUpdatingProgrammatically = true;
             editMulMin.setText(String.valueOf(DEFAULT_MIN));
             editMulMax.setText(String.valueOf(DEFAULT_MAX));
-            isUpdatingProgrammatically = false; // On ouvre le verrou
-            applyFreqAndRestart(true); // On lance l'unique relecture
+            isUpdatingProgrammatically = false;
+            applyFreqAndRestart(true);
         });
 
         findViewById(R.id.button_440).setOnClickListener(v -> {
@@ -106,8 +104,8 @@ public class freqmul extends AppCompatActivity {
 
         findViewById(R.id.button_play_random).setOnClickListener(v -> {
             isSequentialMode = false;
-            applyFreqAndRestart(false); // On met à jour les bornes sans message de log
-            mp3play.playRandom(); // On lance le nouveau morceau
+            syncBoundsOnly();
+            mp3play.playRandom();
         });
 
         findViewById(R.id.button_next).setOnClickListener(v -> playNext());
@@ -118,16 +116,20 @@ public class freqmul extends AppCompatActivity {
         });
     }
 
-    private void applyFreqAndRestart(boolean shouldLog) {
+    private void syncBoundsOnly() {
         try {
             float min = Float.parseFloat(editMulMin.getText().toString());
             float max = Float.parseFloat(editMulMax.getText().toString());
             mp3play.setFrequencyBounds(min, max);
-            if (mp3play.getCurrentPath() != null) {
-                mp3play.restartCurrent();
-                if (shouldLog) UiLog.log("Frequency parameters updated & track restarted.");
-            }
         } catch (Exception ignored) {}
+    }
+
+    private void applyFreqAndRestart(boolean shouldLog) {
+        syncBoundsOnly();
+        if (mp3play.getCurrentPath() != null) {
+            mp3play.restartCurrent();
+            if (shouldLog) UiLog.log("Frequency parameters updated & track restarted.");
+        }
     }
 
     @Override
@@ -167,9 +169,7 @@ public class freqmul extends AppCompatActivity {
 
     private void playTrackAtIndex(int index) {
         if (mp3List == null || mp3List.isEmpty() || index >= mp3List.size()) return;
-        isUpdatingProgrammatically = true; 
-        applyFreqAndRestart(false);
-        isUpdatingProgrammatically = false;
+        syncBoundsOnly();
         mp3play.playFile(mp3List.get(index));
     }
 
