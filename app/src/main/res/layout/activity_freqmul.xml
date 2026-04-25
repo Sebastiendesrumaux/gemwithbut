@@ -3,48 +3,154 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#121212"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:background="#121212">
 
-    <TextView android:id="@+id/text_root_path" 
-        android:layout_width="match_parent" android:layout_height="wrap_content" 
-        android:text="/sdcard/Music" android:textColor="#888888" android:textSize="10sp" />
-
-    <LinearLayout
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="horizontal" android:layout_marginTop="8dp">
-        <Button android:id="@+id/button_list_mp3" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="UPDATE MUSIC FILES LIST" android:textSize="12sp" />
-        <Button android:id="@+id/button_root_rep" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1.5" android:text="SET MUSIC FILES BASE FOLDER" android:textSize="12sp" android:layout_marginStart="4dp"/>
-    </LinearLayout>
-
-    <ListView android:id="@+id/list_mp3" android:layout_width="match_parent" android:layout_height="150dp" android:layout_marginTop="8dp" android:divider="#333333" android:dividerHeight="1dp" />
-
-    <TextView 
-        android:layout_width="match_parent" android:layout_height="wrap_content" 
-        android:text="Per-track random frequency range :" android:textColor="#FFFFFF" 
-        android:layout_marginTop="16dp" android:textSize="14sp" />
+    <TextView
+        android:id="@+id/text_root_path"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#888888"
+        android:textSize="10sp"
+        android:paddingBottom="4dp" />
 
     <LinearLayout
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="horizontal" android:layout_marginTop="4dp" android:gravity="center_vertical">
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Min:" android:textColor="#BBBBBB" />
-        <EditText android:id="@+id/edit_mul_min" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="#00FF00" android:inputType="numberDecimal" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginStart="8dp" android:text="Max:" android:textColor="#BBBBBB" />
-        <EditText android:id="@+id/edit_mul_max" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:textColor="#00FF00" android:inputType="numberDecimal" />
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <Button
+            android:id="@+id/button_list_mp3"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:text="UPDATE LIST"
+            android:textSize="10sp" />
+        <Button
+            android:id="@+id/button_root_rep"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="SET FOLDER"
+            android:textSize="10sp" />
     </LinearLayout>
 
-    <Button android:id="@+id/button_reset_freq" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="ZEN RESET (HALF-TONE)" android:backgroundTint="#455A64" android:layout_marginTop="8dp" />
+    <ListView
+        android:id="@+id/list_mp3"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="4dp"
+        android:layout_marginBottom="4dp"
+        android:divider="#333333"
+        android:dividerHeight="1dp" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Random frequency range :"
+        android:textColor="#FFFFFF"
+        android:textSize="11sp" />
 
     <LinearLayout
-        android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:orientation="horizontal" android:layout_marginTop="16dp">
-        <Button android:id="@+id/button_play_all" android:layout_width="0dp" android:layout_height="70dp" android:layout_weight="1" android:text="ALL" android:backgroundTint="#1976D2" />
-        <Button android:id="@+id/button_play_random" android:layout_width="0dp" android:layout_height="70dp" android:layout_weight="2" android:text="RANDOM" android:backgroundTint="#2E7D32" />
-        <Button android:id="@+id/button_next" android:layout_width="0dp" android:layout_height="70dp" android:layout_weight="1" android:text="NEXT" android:backgroundTint="#FF9800" android:layout_marginStart="4dp" />
-        <Button android:id="@+id/button_stop" android:layout_width="0dp" android:layout_height="70dp" android:layout_weight="1" android:text="STOP" android:backgroundTint="#C62828" android:layout_marginStart="8dp" />
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Min: "
+            android:textColor="#FFFFFF" />
+        <EditText
+            android:id="@+id/edit_mul_min"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:inputType="numberDecimal"
+            android:textColor="#4CAF50"
+            android:textSize="13sp" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=" Max: "
+            android:textColor="#FFFFFF" />
+        <EditText
+            android:id="@+id/edit_mul_max"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:inputType="numberDecimal"
+            android:textColor="#4CAF50"
+            android:textSize="13sp" />
     </LinearLayout>
 
-    <ScrollView android:id="@+id/scroll_transcript" android:layout_width="match_parent" android:layout_height="match_parent" android:layout_marginTop="16dp" android:background="#1A1A1A" android:padding="8dp">
-        <TextView android:id="@+id/text_transcript" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#00FF00" android:textSize="12sp" android:fontFamily="monospace" />
+    <Button
+        android:id="@+id/button_reset_freq"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="ZEN RESET (HALF-TONE)"
+        android:backgroundTint="#455A64"
+        android:textSize="11sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginTop="4dp">
+        <Button
+            android:id="@+id/button_play_all"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="ALL"
+            android:layout_margin="1dp"
+            android:backgroundTint="#1976D2"
+            android:textSize="10sp" />
+        <Button
+            android:id="@+id/button_play_random"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="RAND"
+            android:layout_margin="1dp"
+            android:backgroundTint="#2E7D32"
+            android:textSize="10sp" />
+        <Button
+            android:id="@+id/button_next"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="NEXT"
+            android:layout_margin="1dp"
+            android:backgroundTint="#EF6C00"
+            android:textSize="10sp" />
+        <Button
+            android:id="@+id/button_stop"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="STOP"
+            android:layout_margin="1dp"
+            android:backgroundTint="#C62828"
+            android:textSize="10sp" />
+    </LinearLayout>
+
+    <ScrollView
+        android:id="@+id/scroll_transcript"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="3"
+        android:layout_marginTop="8dp"
+        android:background="#000000">
+        <TextView
+            android:id="@+id/text_transcript"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#00FF00"
+            android:textSize="10sp"
+            android:fontFamily="monospace"
+            android:padding="4dp" />
     </ScrollView>
 </LinearLayout>

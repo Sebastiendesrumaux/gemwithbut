@@ -41,7 +41,7 @@ public class freqmul extends AppCompatActivity {
         editMulMax.setText(String.valueOf(prefs.getFloat(KEY_MUL_MAX, DEFAULT_MAX)));
         textRootPath.setText(rootPath);
 
-        adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, mp3List);
+        adapter = new ArrayAdapter<>(this, R.layout.list_item_freq, mp3List);
         ((ListView)findViewById(R.id.list_mp3)).setAdapter(adapter);
 
         mp3play = new Mp3play(this, rootPath);
