@@ -78,9 +78,9 @@ public class Mp3play {
             // ------------------------
 
             mediaPlayer.start();
-            UiLog.log("Lecture (x" + String.format("%.4f", k) + ") : " + new File(path).getName());
+            UiLog.log("Playing (x" + String.format("%.4f", k) + ") : " + new File(path).getName());
         } catch (Exception e) {
-            UiLog.log("Erreur Player: " + e.getMessage());
+            UiLog.log("Player Error: " + e.getMessage());
         }
     }
 

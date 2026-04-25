@@ -59,7 +59,7 @@ public class freqmul extends AppCompatActivity {
         findViewById(R.id.button_reset_freq).setOnClickListener(v -> {
             editMulMin.setText(String.valueOf(DEFAULT_MIN));
             editMulMax.setText(String.valueOf(DEFAULT_MAX));
-            UiLog.log("Frequences réinitialisées.");
+            UiLog.log("Frequencies reset.");
         });
 
         findViewById(R.id.button_list_mp3).setOnClickListener(v -> {
@@ -67,7 +67,7 @@ public class freqmul extends AppCompatActivity {
             mp3List.clear();
             if (mp3play.getList() != null) mp3List.addAll(mp3play.getList());
             adapter.notifyDataSetChanged();
-            UiLog.log(mp3List.size() + " fichiers musicaux indexés.");
+            UiLog.log(mp3List.size() + " music files indexed.");
         });
 
         findViewById(R.id.button_play_all).setOnClickListener(v -> {
@@ -81,7 +81,7 @@ public class freqmul extends AppCompatActivity {
                 mp3play.setFrequencyBounds(Float.parseFloat(editMulMin.getText().toString()), 
                                            Float.parseFloat(editMulMax.getText().toString()));
                 mp3play.playRandom();
-            } catch (Exception e) { UiLog.log("Erreur de saisie"); }
+            } catch (Exception e) { UiLog.log("Input error"); }
         });
 
         findViewById(R.id.button_next).setOnClickListener(v -> playNext());
@@ -119,7 +119,7 @@ public class freqmul extends AppCompatActivity {
                 }
             }
         });
-                UiLog.log("Nouveau dossier : " + rootPath);
+                UiLog.log("New folder: " + rootPath);
             }
         }
     }
@@ -128,7 +128,7 @@ public class freqmul extends AppCompatActivity {
         try {
             mp3play.setFrequencyBounds(Float.parseFloat(editMulMin.getText().toString()), Float.parseFloat(editMulMax.getText().toString()));
             mp3play.playFile(mp3List.get(index));
-        } catch (Exception e) { UiLog.log("Erreur lecture séquentielle"); }
+        } catch (Exception e) { UiLog.log("Sequential play error"); }
     }
     private void playNext() {
         if (isSequentialMode) {
