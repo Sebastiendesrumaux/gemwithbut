@@ -18,6 +18,8 @@ public class freqmul extends AppCompatActivity {
     private String rootPath;
     private final ArrayList<String> mp3List = new ArrayList<>();
     private ArrayAdapter<String> adapter;
+    private int currentTrackIndex = 0;
+    private boolean isSequentialMode = false;
 
     private final float DEFAULT_MIN = (float) Math.pow(2.0, -1.0/12.0);
     private final float DEFAULT_MAX = (float) Math.pow(2.0, 1.0/12.0);
@@ -43,6 +45,16 @@ public class freqmul extends AppCompatActivity {
         ((ListView)findViewById(R.id.list_mp3)).setAdapter(adapter);
 
         mp3play = new Mp3play(this, rootPath);
+        mp3play.setListener(path -> {
+            if (isSequentialMode) {
+                currentTrackIndex++;
+                if (currentTrackIndex < mp3List.size()) {
+                    playTrackAtIndex(currentTrackIndex);
+                } else {
+                    UiLog.log("Fin de la liste.");
+                }
+            }
+        });
 
         findViewById(R.id.button_reset_freq).setOnClickListener(v -> {
             editMulMin.setText(String.valueOf(DEFAULT_MIN));
@@ -58,7 +70,13 @@ public class freqmul extends AppCompatActivity {
             UiLog.log(mp3List.size() + " fichiers musicaux indexés.");
         });
 
+        findViewById(R.id.button_play_all).setOnClickListener(v -> {
+            isSequentialMode = true;
+            currentTrackIndex = 0;
+            playTrackAtIndex(currentTrackIndex);
+        });
         findViewById(R.id.button_play_random).setOnClickListener(v -> {
+            isSequentialMode = false;
             try {
                 mp3play.setFrequencyBounds(Float.parseFloat(editMulMin.getText().toString()), 
                                            Float.parseFloat(editMulMax.getText().toString()));
@@ -90,8 +108,25 @@ public class freqmul extends AppCompatActivity {
                 rootPath = "/sdcard/" + DocumentsContract.getTreeDocumentId(uri).split(":")[1];
                 textRootPath.setText(rootPath);
                 mp3play = new Mp3play(this, rootPath);
+        mp3play.setListener(path -> {
+            if (isSequentialMode) {
+                currentTrackIndex++;
+                if (currentTrackIndex < mp3List.size()) {
+                    playTrackAtIndex(currentTrackIndex);
+                } else {
+                    UiLog.log("Fin de la liste.");
+                }
+            }
+        });
                 UiLog.log("Nouveau dossier : " + rootPath);
             }
         }
+    }
+    private void playTrackAtIndex(int index) {
+        if (mp3List == null || mp3List.isEmpty() || index >= mp3List.size()) return;
+        try {
+            mp3play.setFrequencyBounds(Float.parseFloat(editMulMin.getText().toString()), Float.parseFloat(editMulMax.getText().toString()));
+            mp3play.playFile(mp3List.get(index));
+        } catch (Exception e) { UiLog.log("Erreur lecture séquentielle"); }
     }
 }
