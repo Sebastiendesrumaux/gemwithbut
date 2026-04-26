@@ -3,7 +3,6 @@ package com.example.freqmul;
 import android.content.Context;
 import android.media.MediaPlayer;
 import android.media.PlaybackParams;
-import android.widget.Toast;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Random;
@@ -32,6 +31,9 @@ public class Mp3play {
         this.mulMin = min;
         this.mulMax = max;
     }
+
+    public float getMulMin() { return mulMin; }
+    public float getMulMax() { return mulMax; }
 
     public void setListener(Mp3Listener listener) { this.listener = listener; }
     public ArrayList<String> getList() { return mp3; }
@@ -63,22 +65,19 @@ public class Mp3play {
             mediaPlayer.setDataSource(path);
             mediaPlayer.setOnCompletionListener(mp -> {
                 if (listener != null) listener.onTrackCompletion(currentPath);
-                playRandom(); 
             });
             mediaPlayer.prepare();
 
-            // --- LA MAGIE FREQMUL ---
             float k = mulMin + rng.nextFloat() * (mulMax - mulMin);
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
                 PlaybackParams params = new PlaybackParams();
                 params.setSpeed(k);
-                params.setPitch(k); // Synchronisation vitesse/hauteur pour effet analogique
+                params.setPitch(k); 
                 mediaPlayer.setPlaybackParams(params);
             }
-            // ------------------------
 
             mediaPlayer.start();
-            UiLog.log("Playing (x" + String.format("%.4f", k) + ") : " + path);
+            UiLog.log("Playing (x" + String.format("%.4f", k) + ") : " + new File(path).getName());
         } catch (Exception e) {
             UiLog.log("Player Error: " + e.getMessage());
         }

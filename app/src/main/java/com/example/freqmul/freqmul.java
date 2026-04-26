@@ -14,6 +14,7 @@ import android.text.TextWatcher;
 import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
 import java.util.ArrayList;
+import java.io.File;
 
 public class freqmul extends AppCompatActivity {
     private static final String PREFS_NAME = "freqmul_prefs";
@@ -39,12 +40,33 @@ public class freqmul extends AppCompatActivity {
             mService = binder.getService();
             mBound = true;
             
+            // --- SYNCHRONISATION AU RÉVEIL ---
+            float currentMin = mService.getMp3play().getMulMin();
+            float currentMax = mService.getMp3play().getMulMax();
+            
+            runOnUiThread(() -> {
+                isUpdatingProgrammatically = true;
+                editMulMin.setText(String.valueOf(currentMin));
+                editMulMax.setText(String.valueOf(currentMax));
+                isUpdatingProgrammatically = false;
+            });
+            
             if (mService.getMp3play().getList() != null) {
                 mp3List.clear();
                 mp3List.addAll(mService.getMp3play().getList());
                 adapter.notifyDataSetChanged();
                 mService.setTrackList(mp3List);
             }
+
+            mService.getMp3play().setListener(path -> {
+                runOnUiThread(() -> {
+                    if (mService.isSequentialMode()) {
+                        mService.playNext();
+                    } else {
+                        mService.showNotification("Playing (Random): " + new File(path).getName());
+                    }
+                });
+            });
         }
         @Override
         public void onServiceDisconnected(ComponentName arg0) { mBound = false; }
@@ -62,6 +84,8 @@ public class freqmul extends AppCompatActivity {
 
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         rootPath = prefs.getString(KEY_ROOT_PATH, "/sdcard/Music");
+        
+        // On charge les prefs par défaut, mais elles seront écrasées par le service s'il tourne
         editMulMin.setText(String.valueOf(prefs.getFloat(KEY_MUL_MIN, DEFAULT_MIN)));
         editMulMax.setText(String.valueOf(prefs.getFloat(KEY_MUL_MAX, DEFAULT_MAX)));
         textRootPath.setText(rootPath);
@@ -107,7 +131,6 @@ public class freqmul extends AppCompatActivity {
             if (mBound) mService.playNext();
         });
 
-        // Les boutons de reset et TextWatcher restent identiques...
         findViewById(R.id.button_reset_freq).setOnClickListener(v -> {
             isUpdatingProgrammatically = true;
             editMulMin.setText(String.valueOf(DEFAULT_MIN));
@@ -154,15 +177,14 @@ public class freqmul extends AppCompatActivity {
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == 1001 && resultCode == RESULT_OK && data != null) {
-            Uri uri = data.getData();
-            if (uri != null) {
-                rootPath = "/sdcard/" + DocumentsContract.getTreeDocumentId(uri).split(":")[1];
-                textRootPath.setText(rootPath);
-            }
-        }
+    protected void onPause() {
+        super.onPause();
+        try {
+            getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
+                .putFloat(KEY_MUL_MIN, Float.parseFloat(editMulMin.getText().toString()))
+                .putFloat(KEY_MUL_MAX, Float.parseFloat(editMulMax.getText().toString()))
+                .putString(KEY_ROOT_PATH, rootPath).apply();
+        } catch (Exception ignored) {}
     }
 
     @Override
