@@ -28,8 +28,9 @@ public class Mp3play {
     }
 
     public void setFrequencyBounds(float min, float max) {
-        this.mulMin = min;
-        this.mulMax = max;
+        // LIMITATEUR DE SÉCURITÉ : AndroidMediaPlayer sature souvent au-delà de 6.0
+        this.mulMin = Math.max(0.1f, Math.min(min, 6.0f));
+        this.mulMax = Math.max(0.1f, Math.min(max, 6.0f));
     }
 
     public float getMulMin() { return mulMin; }
@@ -66,9 +67,17 @@ public class Mp3play {
             mediaPlayer.setOnCompletionListener(mp -> {
                 if (listener != null) listener.onTrackCompletion(currentPath);
             });
+            // Gestion d'erreur pour éviter le saut automatique silencieux
+            mediaPlayer.setOnErrorListener((mp, what, extra) -> {
+                UiLog.log("Erreur Audio (Facteur trop élevé ?)");
+                return false; 
+            });
+
             mediaPlayer.prepare();
 
             float k = mulMin + rng.nextFloat() * (mulMax - mulMin);
+            
+            // LA MAGIE FREQMUL AVEC PROTECTION
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
                 PlaybackParams params = new PlaybackParams();
                 params.setSpeed(k);
