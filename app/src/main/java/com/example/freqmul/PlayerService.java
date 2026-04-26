@@ -6,11 +6,17 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.IBinder;
 import androidx.core.app.NotificationCompat;
+import java.util.ArrayList;
+import java.io.File;
 
 public class PlayerService extends Service {
     private static final String CHANNEL_ID = "BouddhaPlayerChannel";
     private final IBinder binder = new LocalBinder();
     private Mp3play mp3play;
+    
+    private boolean sequentialMode = false;
+    private int currentTrackIndex = 0;
+    private ArrayList<String> trackList = new ArrayList<>();
 
     public class LocalBinder extends Binder {
         PlayerService getService() { return PlayerService.this; }
@@ -19,17 +25,44 @@ public class PlayerService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        // On initialise le player ici. Le rootPath sera mis à jour par l'activity.
         mp3play = new Mp3play(this, "/sdcard/Music");
+        
+        mp3play.setListener(path -> {
+            if (sequentialMode) {
+                playNext(); // Utilise la nouvelle logique
+            } else {
+                showNotification("Playing (Random): " + new File(path).getName());
+            }
+        });
     }
 
     public Mp3play getMp3play() { return mp3play; }
+    public void setSequentialMode(boolean mode) { this.sequentialMode = mode; }
+    public boolean isSequentialMode() { return sequentialMode; }
+    public void setTrackList(ArrayList<String> list) { this.trackList = list; }
+    
+    public void playTrackAtIndex(int index) {
+        if (trackList == null || trackList.isEmpty() || index >= trackList.size()) return;
+        this.currentTrackIndex = index;
+        String path = trackList.get(index);
+        mp3play.playFile(path);
+        showNotification("Playing: " + new File(path).getName());
+    }
 
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        createNotificationChannel();
-        showNotification("En attente de lecture...");
-        return START_STICKY;
+    // LA NOUVELLE MÉTHODE CLÉ
+    public void playNext() {
+        if (trackList == null || trackList.isEmpty()) return;
+        
+        if (sequentialMode) {
+            currentTrackIndex = (currentTrackIndex + 1) % trackList.size();
+            playTrackAtIndex(currentTrackIndex);
+        } else {
+            mp3play.playRandom();
+            // On met à jour la notif pour le random car playRandom n'appelle pas playTrackAtIndex
+            if (mp3play.getCurrentPath() != null) {
+                showNotification("Playing (Random): " + new File(mp3play.getCurrentPath()).getName());
+            }
+        }
     }
 
     public void showNotification(String trackName) {

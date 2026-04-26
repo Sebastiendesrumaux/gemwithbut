@@ -14,7 +14,6 @@ import android.text.TextWatcher;
 import android.widget.*;
 import androidx.appcompat.app.AppCompatActivity;
 import java.util.ArrayList;
-import java.io.File;
 
 public class freqmul extends AppCompatActivity {
     private static final String PREFS_NAME = "freqmul_prefs";
@@ -28,8 +27,6 @@ public class freqmul extends AppCompatActivity {
     
     private PlayerService mService;
     private boolean mBound = false;
-    private boolean isSequentialMode = false;
-    private int currentTrackIndex = 0;
     private boolean isUpdatingProgrammatically = false;
 
     private final float DEFAULT_MIN = (float) Math.pow(2.0, -1.0/12.0);
@@ -46,23 +43,9 @@ public class freqmul extends AppCompatActivity {
                 mp3List.clear();
                 mp3List.addAll(mService.getMp3play().getList());
                 adapter.notifyDataSetChanged();
+                mService.setTrackList(mp3List);
             }
-            
-            mService.getMp3play().setListener(path -> {
-                runOnUiThread(() -> {
-                    mService.showNotification("Playing: " + new File(path).getName());
-                    if (isSequentialMode) {
-                        currentTrackIndex++;
-                        if (currentTrackIndex < mp3List.size()) {
-                            playTrackAtIndex(currentTrackIndex);
-                        } else {
-                            UiLog.log("Fin de la liste.");
-                        }
-                    }
-                });
-            });
         }
-
         @Override
         public void onServiceDisconnected(ComponentName arg0) { mBound = false; }
     };
@@ -90,38 +73,41 @@ public class freqmul extends AppCompatActivity {
         startService(intent);
         bindService(intent, connection, Context.BIND_AUTO_CREATE);
 
-        // --- LISTENERS RÉTABLIS ---
-
         findViewById(R.id.button_list_mp3).setOnClickListener(v -> {
             if (mBound) {
                 mService.getMp3play().reloadList(rootPath);
                 mp3List.clear();
                 mp3List.addAll(mService.getMp3play().getList());
                 adapter.notifyDataSetChanged();
-                UiLog.log(mp3List.size() + " files indexed.");
+                mService.setTrackList(mp3List);
             }
         });
 
         findViewById(R.id.button_play_all).setOnClickListener(v -> {
-            isSequentialMode = true;
-            currentTrackIndex = 0;
-            playTrackAtIndex(currentTrackIndex);
+            if (mBound) {
+                mService.setSequentialMode(true);
+                syncBounds();
+                mService.playTrackAtIndex(0);
+            }
         });
 
         findViewById(R.id.button_play_random).setOnClickListener(v -> {
-            isSequentialMode = false;
             if (mBound) {
+                mService.setSequentialMode(false);
                 syncBounds();
                 mService.getMp3play().playRandom();
             }
         });
 
-        findViewById(R.id.button_next).setOnClickListener(v -> playNext());
-
         findViewById(R.id.button_stop).setOnClickListener(v -> {
             if (mBound) mService.getMp3play().stop();
         });
 
+        findViewById(R.id.button_next).setOnClickListener(v -> {
+            if (mBound) mService.playNext();
+        });
+
+        // Les boutons de reset et TextWatcher restent identiques...
         findViewById(R.id.button_reset_freq).setOnClickListener(v -> {
             isUpdatingProgrammatically = true;
             editMulMin.setText(String.valueOf(DEFAULT_MIN));
@@ -136,11 +122,6 @@ public class freqmul extends AppCompatActivity {
             editMulMax.setText("1.0");
             isUpdatingProgrammatically = false;
             applyFreqAndRestart();
-        });
-
-        findViewById(R.id.button_root_rep).setOnClickListener(v -> { 
-            if (mBound) mService.getMp3play().stop(); 
-            startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), 1001); 
         });
 
         TextWatcher liveFreqWatcher = new TextWatcher() {
@@ -169,34 +150,7 @@ public class freqmul extends AppCompatActivity {
         syncBounds();
         if (mBound && mService.getMp3play().getCurrentPath() != null) {
             mService.getMp3play().restartCurrent();
-            UiLog.log("Freq updated.");
         }
-    }
-
-    private void playTrackAtIndex(int index) {
-        if (!mBound || mp3List.isEmpty() || index >= mp3List.size()) return;
-        syncBounds();
-        mService.getMp3play().playFile(mp3List.get(index));
-    }
-
-    private void playNext() {
-        if (isSequentialMode) {
-            currentTrackIndex = (currentTrackIndex + 1) % mp3List.size();
-            playTrackAtIndex(currentTrackIndex);
-        } else {
-            if (mBound) mService.getMp3play().playRandom();
-        }
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        try {
-            getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
-                .putFloat(KEY_MUL_MIN, Float.parseFloat(editMulMin.getText().toString()))
-                .putFloat(KEY_MUL_MAX, Float.parseFloat(editMulMax.getText().toString()))
-                .putString(KEY_ROOT_PATH, rootPath).apply();
-        } catch (Exception ignored) {}
     }
 
     @Override
@@ -207,7 +161,6 @@ public class freqmul extends AppCompatActivity {
             if (uri != null) {
                 rootPath = "/sdcard/" + DocumentsContract.getTreeDocumentId(uri).split(":")[1];
                 textRootPath.setText(rootPath);
-                UiLog.log("New root: " + rootPath);
             }
         }
     }
@@ -215,9 +168,6 @@ public class freqmul extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (mBound) {
-            unbindService(connection);
-            mBound = false;
-        }
+        if (mBound) { unbindService(connection); mBound = false; }
     }
 }
