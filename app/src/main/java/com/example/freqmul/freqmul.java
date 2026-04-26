@@ -40,17 +40,28 @@ public class freqmul extends AppCompatActivity {
             mService = binder.getService();
             mBound = true;
             
-            // --- SYNCHRONISATION AU RÉVEIL ---
-            float currentMin = mService.getMp3play().getMulMin();
-            float currentMax = mService.getMp3play().getMulMax();
-            
-            runOnUiThread(() -> {
-                isUpdatingProgrammatically = true;
-                editMulMin.setText(String.valueOf(currentMin));
-                editMulMax.setText(String.valueOf(currentMax));
-                isUpdatingProgrammatically = false;
-            });
-            
+            // --- LOGIQUE DU HANDSHAKE ---
+            if (mService.getMp3play().getCurrentPath() != null) {
+                // Scénario A : Service Vétéran (Swipe)
+                // On aspire les valeurs réelles du service
+                float currentMin = mService.getMp3play().getMulMin();
+                float currentMax = mService.getMp3play().getMulMax();
+                
+                runOnUiThread(() -> {
+                    isUpdatingProgrammatically = true;
+                    editMulMin.setText(String.valueOf(currentMin));
+                    editMulMax.setText(String.valueOf(currentMax));
+                    isUpdatingProgrammatically = false;
+                });
+                UiLog.log("Synchronisé sur le Service actif.");
+            } else {
+                // Scénario B : Service Bleu (Reboot / Premier lancement)
+                // On pousse les valeurs des registres vers le service
+                syncBounds();
+                UiLog.log("Registres poussés vers le nouveau Service.");
+            }
+
+            // Mise à jour de la liste et du listener
             if (mService.getMp3play().getList() != null) {
                 mp3List.clear();
                 mp3List.addAll(mService.getMp3play().getList());
@@ -68,8 +79,11 @@ public class freqmul extends AppCompatActivity {
                 });
             });
         }
+
         @Override
-        public void onServiceDisconnected(ComponentName arg0) { mBound = false; }
+        public void onServiceDisconnected(ComponentName arg0) {
+            mBound = false;
+        }
     };
 
     @Override
@@ -82,10 +96,9 @@ public class freqmul extends AppCompatActivity {
         textRootPath = findViewById(R.id.text_root_path);
         UiLog.init(this, findViewById(R.id.list_log));
 
+        // Lecture initiale des registres pour l'affichage
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         rootPath = prefs.getString(KEY_ROOT_PATH, "/sdcard/Music");
-        
-        // On charge les prefs par défaut, mais elles seront écrasées par le service s'il tourne
         editMulMin.setText(String.valueOf(prefs.getFloat(KEY_MUL_MIN, DEFAULT_MIN)));
         editMulMax.setText(String.valueOf(prefs.getFloat(KEY_MUL_MAX, DEFAULT_MAX)));
         textRootPath.setText(rootPath);
@@ -93,10 +106,12 @@ public class freqmul extends AppCompatActivity {
         adapter = new ArrayAdapter<>(this, R.layout.list_item_freq, mp3List);
         ((ListView)findViewById(R.id.list_mp3)).setAdapter(adapter);
 
+        // Allumage et liaison au service
         Intent intent = new Intent(this, PlayerService.class);
         startService(intent);
         bindService(intent, connection, Context.BIND_AUTO_CREATE);
 
+        // Listeners Boutons
         findViewById(R.id.button_list_mp3).setOnClickListener(v -> {
             if (mBound) {
                 mService.getMp3play().reloadList(rootPath);
@@ -123,12 +138,12 @@ public class freqmul extends AppCompatActivity {
             }
         });
 
-        findViewById(R.id.button_stop).setOnClickListener(v -> {
-            if (mBound) mService.getMp3play().stop();
-        });
-
         findViewById(R.id.button_next).setOnClickListener(v -> {
             if (mBound) mService.playNext();
+        });
+
+        findViewById(R.id.button_stop).setOnClickListener(v -> {
+            if (mBound) mService.getMp3play().stop();
         });
 
         findViewById(R.id.button_reset_freq).setOnClickListener(v -> {
@@ -147,6 +162,12 @@ public class freqmul extends AppCompatActivity {
             applyFreqAndRestart();
         });
 
+        findViewById(R.id.button_root_rep).setOnClickListener(v -> { 
+            if (mBound) mService.getMp3play().stop(); 
+            startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), 1001); 
+        });
+
+        // Watcher pour les changements en direct
         TextWatcher liveFreqWatcher = new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
@@ -179,6 +200,7 @@ public class freqmul extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+        // Sauvegarde systématique dans les registres (SharedPreferences)
         try {
             getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
                 .putFloat(KEY_MUL_MIN, Float.parseFloat(editMulMin.getText().toString()))
@@ -188,8 +210,23 @@ public class freqmul extends AppCompatActivity {
     }
 
     @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1001 && resultCode == RESULT_OK && data != null) {
+            Uri uri = data.getData();
+            if (uri != null) {
+                rootPath = "/sdcard/" + DocumentsContract.getTreeDocumentId(uri).split(":")[1];
+                textRootPath.setText(rootPath);
+            }
+        }
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (mBound) { unbindService(connection); mBound = false; }
+        if (mBound) {
+            unbindService(connection);
+            mBound = false;
+        }
     }
 }
