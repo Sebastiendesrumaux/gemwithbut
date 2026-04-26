@@ -3,6 +3,7 @@ package com.example.freqmul;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.DocumentsContract;
 import android.text.Editable;
@@ -58,13 +59,12 @@ public class freqmul extends AppCompatActivity {
             }
         });
 
-        // WATCHER AVEC LOG ACTIVÉ
         TextWatcher liveFreqWatcher = new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
             @Override public void afterTextChanged(Editable s) {
                 if (!isUpdatingProgrammatically && s.length() > 0 && !s.toString().equals(".") && !s.toString().equals("-")) {
-                    applyFreqAndRestart(true); // ON LOGUE ICI AUSSI
+                    applyFreqAndRestart(true);
                 }
             }
         };
@@ -109,7 +109,10 @@ public class freqmul extends AppCompatActivity {
         });
 
         findViewById(R.id.button_next).setOnClickListener(v -> playNext());
-        findViewById(R.id.button_stop).setOnClickListener(v -> mp3play.stop());
+        findViewById(R.id.button_stop).setOnClickListener(v -> {
+            mp3play.stop();
+            stopService(new Intent(this, PlayerService.class));
+        });
         findViewById(R.id.button_root_rep).setOnClickListener(v -> { 
             mp3play.stop(); 
             startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), 1001); 
@@ -128,7 +131,7 @@ public class freqmul extends AppCompatActivity {
         syncBoundsOnly();
         if (mp3play.getCurrentPath() != null) {
             mp3play.restartCurrent();
-            if (shouldLog) UiLog.log("Frequency parameters updated & track restarted.");
+            if (shouldLog) UiLog.log("Frequency parameters updated.");
         }
     }
 
@@ -152,16 +155,6 @@ public class freqmul extends AppCompatActivity {
                 rootPath = "/sdcard/" + DocumentsContract.getTreeDocumentId(uri).split(":")[1];
                 textRootPath.setText(rootPath);
                 mp3play = new Mp3play(this, rootPath);
-                mp3play.setListener(path -> {
-                    if (isSequentialMode) {
-                        currentTrackIndex++;
-                        if (currentTrackIndex < mp3List.size()) {
-                            playTrackAtIndex(currentTrackIndex);
-                        } else {
-                            UiLog.log("Fin de la liste.");
-                        }
-                    }
-                });
                 UiLog.log("New folder: " + rootPath);
             }
         }
@@ -170,6 +163,15 @@ public class freqmul extends AppCompatActivity {
     private void playTrackAtIndex(int index) {
         if (mp3List == null || mp3List.isEmpty() || index >= mp3List.size()) return;
         syncBoundsOnly();
+        
+        // --- LANCEMENT DU SERVICE ---
+        Intent serviceIntent = new Intent(this, PlayerService.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent);
+        } else {
+            startService(serviceIntent);
+        }
+        
         mp3play.playFile(mp3List.get(index));
     }
 
@@ -179,6 +181,11 @@ public class freqmul extends AppCompatActivity {
             if (mp3List != null && currentTrackIndex >= mp3List.size()) currentTrackIndex = 0;
             playTrackAtIndex(currentTrackIndex);
         } else {
+            // Pour le mode random, on s'assure aussi de réveiller le service
+            Intent serviceIntent = new Intent(this, PlayerService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(serviceIntent);
+            else startService(serviceIntent);
+            
             mp3play.playRandom();
         }
     }
