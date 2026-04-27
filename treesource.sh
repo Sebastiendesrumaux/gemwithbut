@@ -9,7 +9,8 @@ find . -type d \( -name "build" -o -name ".gradle" -o -name ".git" \) -prune -o 
   -name "*.gradle" -o \
   -name "*.properties" -o \
   -name "AndroidManifest.xml" -o \
-  -name "*.xml" \
+  -name "*.xml" -o \
+  -name "*.json" -o \
   -name "*.pro" \
 \) -print -exec sh -c 'echo "===== {} ====="; sed "s/^/    /" "{}"' \;
 

@@ -1,6 +1,7 @@
 package com.example.freqmul;
 
 import android.content.Context;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.PlaybackParams;
 import java.io.File;
