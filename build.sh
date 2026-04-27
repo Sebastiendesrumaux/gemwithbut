@@ -8,6 +8,9 @@ echo "▶️ Build direct avec Gradle (assembleDebug)…"
 # donc on passe par bash :
 (bash ./gradlew assembleDebug 2>&1 | tee /dev/tty | termux-clipboard-set)
 
+termux-tts-speak "Yeah!"
+
+
 echo "▶️ Recherche de l'APK debug produit par Gradle…"
 
 APK_SRC=""
