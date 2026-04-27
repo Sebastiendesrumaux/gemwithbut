@@ -21,17 +21,20 @@ public class PlayerService extends Service {
     private int currentTrackIndex = 0;
     private ArrayList<String> trackList = new ArrayList<>();
 
-    // L'ÉCOUTEUR DE FOCUS (Le bouclier)
     private final AudioManager.OnAudioFocusChangeListener mFocusListener = focusChange -> {
         if (mp3play == null) return;
         switch (focusChange) {
             case AudioManager.AUDIOFOCUS_LOSS:
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-                mp3play.stop(); // On arrête tout si le monde extérieur réclame l'audio
-                showNotification("Pause (Focus perdu)");
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK: // <-- Silence Radical ici
+                mp3play.stop(); 
+                showNotification("Pause forcée (Silence total)");
                 break;
             case AudioManager.AUDIOFOCUS_GAIN:
-                // Optionnel : reprendre ici si tu veux une reprise automatique
+                if (mp3play.getCurrentPath() != null) {
+                    mp3play.restartCurrent();
+                    showNotification("Évasion reprise");
+                }
                 break;
         }
     };
@@ -60,10 +63,7 @@ public class PlayerService extends Service {
     
     public void playTrackAtIndex(int index) {
         if (trackList == null || trackList.isEmpty() || index >= trackList.size()) return;
-        
-        // REQUÊTE DE FOCUS avant de jouer
         int result = mAudioManager.requestAudioFocus(mFocusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
-        
         if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
             this.currentTrackIndex = index;
             mp3play.playFile(trackList.get(index));
