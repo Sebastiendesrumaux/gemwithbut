@@ -12,6 +12,8 @@ import android.provider.DocumentsContract;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.widget.*;
+import android.Manifest;
+import androidx.core.app.ActivityCompat;
 import androidx.appcompat.app.AppCompatActivity;
 import java.util.ArrayList;
 import java.io.File;
@@ -94,6 +96,7 @@ public class freqmul extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_freqmul);
+        if (android.os.Build.VERSION.SDK_INT >= 33) { ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101); }
 
         editMulMin = findViewById(R.id.edit_mul_min);
         editMulMax = findViewById(R.id.edit_mul_max);
