@@ -1,5 +1,4 @@
 package com.example.freqmul;
-
 import android.app.Activity;
 import android.content.ClipboardManager;
 import android.content.ClipData;
@@ -17,56 +16,33 @@ public class UiLog {
     private static ArrayAdapter<String> adapter;
 
     public static void init(Activity act, ListView lv) {
-        activity = act;
-        listView = lv;
+        activity = act; listView = lv;
         adapter = new ArrayAdapter<String>(act, R.layout.list_item_log, logLines) {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
-                if (convertView == null) {
-                    convertView = activity.getLayoutInflater().inflate(R.layout.list_item_log, parent, false);
-                }
+                if (convertView == null) convertView = activity.getLayoutInflater().inflate(R.layout.list_item_log, parent, false);
                 String line = getItem(position);
                 TextView tv = convertView.findViewById(R.id.log_text);
                 Button btnFull = convertView.findViewById(R.id.btn_copy_full);
                 Button btnName = convertView.findViewById(R.id.btn_copy_name);
                 tv.setText(line);
-                
-                // Détection : est-ce une ligne de fichier (contient " : ") ?
                 if (line.contains(" : ")) {
-                    btnFull.setVisibility(View.VISIBLE);
-                    btnName.setVisibility(View.VISIBLE);
-                    
+                    btnFull.setVisibility(View.VISIBLE); btnName.setVisibility(View.VISIBLE);
                     final String path = line.split(" : ")[1];
                     final String fileName = new File(path).getName();
                     ClipboardManager cm = (ClipboardManager) activity.getSystemService(Context.CLIPBOARD_SERVICE);
-
-                    btnFull.setOnClickListener(v -> {
-                        cm.setPrimaryClip(ClipData.newPlainText("full", path));
-                        Toast.makeText(activity, "Full path copied!", Toast.LENGTH_SHORT).show();
-                    });
-
-                    btnName.setOnClickListener(v -> {
-                        cm.setPrimaryClip(ClipData.newPlainText("name", fileName));
-                        Toast.makeText(activity, "Filename copied!", Toast.LENGTH_SHORT).show();
-                    });
+                    btnFull.setOnClickListener(v -> { cm.setPrimaryClip(ClipData.newPlainText("full", path)); Toast.makeText(activity, "Full path copied!", Toast.LENGTH_SHORT).show(); });
+                    btnName.setOnClickListener(v -> { cm.setPrimaryClip(ClipData.newPlainText("name", fileName)); Toast.makeText(activity, "Filename copied!", Toast.LENGTH_SHORT).show(); });
                 } else {
-                    // C'est une info système, on cache les boutons
-                    btnFull.setVisibility(View.GONE);
-                    btnName.setVisibility(View.GONE);
+                    btnFull.setVisibility(View.GONE); btnName.setVisibility(View.GONE);
                 }
-
                 return convertView;
             }
         };
         listView.setAdapter(adapter);
     }
-
     public static void log(String msg) {
         if (activity == null || adapter == null) return;
-        activity.runOnUiThread(() -> {
-            logLines.add(msg);
-            adapter.notifyDataSetChanged();
-            listView.setSelection(adapter.getCount() - 1);
-        });
+        activity.runOnUiThread(() -> { logLines.add(msg); adapter.notifyDataSetChanged(); listView.setSelection(adapter.getCount() - 1); });
     }
 }

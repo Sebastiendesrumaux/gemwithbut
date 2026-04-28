@@ -18,14 +18,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import java.util.ArrayList;
 import java.io.File;
 
-/* * PROTOCOLE DE MAINTENANCE DES VARIABLES D'ÉTAT
- * ---------------------------------------------
- * 1. PERSISTANCE : Sauver dans SharedPreferences (onPause).
- * 2. HANDSHAKE (onServiceConnected) : 
- * - Si Service ACTIF : Appeler aspirateStateFromService().
- * - Si Service NEUF  : Appeler pushStateToService().
- */
-
 public class freqmul extends AppCompatActivity {
     private static final String PREFS_NAME = "freqmul_prefs";
     private EditText editMulMin, editMulMax;
@@ -33,7 +25,6 @@ public class freqmul extends AppCompatActivity {
     private String rootPath;
     private final ArrayList<String> mp3List = new ArrayList<>();
     private ArrayAdapter<String> adapter;
-    
     private PlayerService mService;
     private boolean mBound = false;
     private boolean isUpdatingProgrammatically = false;
@@ -43,9 +34,7 @@ public class freqmul extends AppCompatActivity {
         public void onServiceConnected(ComponentName className, IBinder service) {
             mService = ((PlayerService.LocalBinder) service).getService();
             mBound = true;
-            
             handleHandshake();
-            
             mService.getMp3play().setListener(path -> {
                 runOnUiThread(() -> {
                     if (mService.isSequentialMode()) mService.playNext();
@@ -57,13 +46,8 @@ public class freqmul extends AppCompatActivity {
     };
 
     private void handleHandshake() {
-        if (mService.getMp3play().getCurrentPath() != null) {
-            aspirateStateFromService();
-            UiLog.log("Interface synchronisée sur le Service actif.");
-        } else {
-            pushStateToService();
-            UiLog.log("Paramètres poussés vers le nouveau Service.");
-        }
+        if (mService.getMp3play().getCurrentPath() != null) aspirateStateFromService();
+        else pushStateToService();
         refreshListFromService();
     }
 
@@ -116,17 +100,17 @@ public class freqmul extends AppCompatActivity {
         startService(intent);
         bindService(intent, connection, Context.BIND_AUTO_CREATE);
 
-        // --- LISTENERS BOUTONS ---
         findViewById(R.id.button_list_mp3).setOnClickListener(v -> {
             if (mBound) {
+                FileLogger.log(this, "🔘 UI: Refresh List");
                 mService.getMp3play().reloadList(rootPath);
                 refreshListFromService();
-                UiLog.log(mp3List.size() + " fichiers indexés.");
             }
         });
 
         findViewById(R.id.button_play_all).setOnClickListener(v -> {
             if (mBound) {
+                FileLogger.log(this, "🔘 UI: Play All (Sequential)");
                 mService.setSequentialMode(true);
                 pushStateToService();
                 mService.playTrackAtIndex(0);
@@ -135,24 +119,30 @@ public class freqmul extends AppCompatActivity {
 
         findViewById(R.id.button_play_random).setOnClickListener(v -> {
             if (mBound) {
+                FileLogger.log(this, "🔘 UI: Play Random");
                 mService.setSequentialMode(false);
                 pushStateToService();
                 mService.getMp3play().playRandom();
             }
         });
 
-        findViewById(R.id.button_next).setOnClickListener(v -> { if (mBound) mService.playNext(); });
-        findViewById(R.id.button_stop).setOnClickListener(v -> { if (mBound) mService.getMp3play().stop(); });
+        findViewById(R.id.button_next).setOnClickListener(v -> { 
+            if (mBound) { FileLogger.log(this, "🔘 UI: Next"); mService.playNext(); }
+        });
+        
+        findViewById(R.id.button_stop).setOnClickListener(v -> { 
+            if (mBound) mService.stopPlayback(); 
+        });
 
-        // LE BOUTON RÉTABLI
         findViewById(R.id.button_root_rep).setOnClickListener(v -> { 
-            if (mBound) mService.getMp3play().stop(); 
+            if (mBound) mService.stopPlayback(); 
             startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), 1001); 
         });
 
         findViewById(R.id.button_reset_freq).setOnClickListener(v -> {
+            FileLogger.log(this, "🔘 UI: Reset Freq");
             isUpdatingProgrammatically = true;
-            editMulMin.setText(String.valueOf(0.9438f)); // Valeur par défaut
+            editMulMin.setText(String.valueOf(0.9438f));
             editMulMax.setText(String.valueOf(1.0594f));
             isUpdatingProgrammatically = false;
             pushStateToService();
@@ -160,6 +150,7 @@ public class freqmul extends AppCompatActivity {
         });
 
         findViewById(R.id.button_440).setOnClickListener(v -> {
+            FileLogger.log(this, "🔘 UI: Back to 440Hz");
             isUpdatingProgrammatically = true;
             editMulMin.setText("1.0");
             editMulMax.setText("1.0");
@@ -174,9 +165,7 @@ public class freqmul extends AppCompatActivity {
             @Override public void afterTextChanged(Editable s) {
                 if (!isUpdatingProgrammatically && s.length() > 0 && !s.toString().equals(".") && !s.toString().equals("-")) {
                     pushStateToService();
-                    if (mService != null && mService.getMp3play().getCurrentPath() != null) {
-                        mService.getMp3play().restartCurrent();
-                    }
+                    if (mService != null && mService.getMp3play().getCurrentPath() != null) mService.getMp3play().restartCurrent();
                 }
             }
         };
@@ -184,20 +173,21 @@ public class freqmul extends AppCompatActivity {
         editMulMax.addTextChangedListener(watcher);
     }
 
-    // MÉTHODE RÉTABLIE
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == 1001 && resultCode == RESULT_OK && data != null) {
-            Uri uri = data.getData();
-            if (uri != null) {
-                rootPath = "/sdcard/" + DocumentsContract.getTreeDocumentId(uri).split(":")[1];
+            Uri treeUri = data.getData();
+            if (treeUri != null) {
+                final int takeFlags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                getContentResolver().takePersistableUriPermission(treeUri, takeFlags);
+                rootPath = "/sdcard/" + DocumentsContract.getTreeDocumentId(treeUri).split(":")[1];
                 textRootPath.setText(rootPath);
+                FileLogger.log(this, "📂 Dossier Base : " + rootPath + " (🔑 Persisté)");
                 if (mBound) {
                     mService.getMp3play().reloadList(rootPath);
                     refreshListFromService();
                 }
-                UiLog.log("Nouveau dossier : " + rootPath);
             }
         }
     }
