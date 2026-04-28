@@ -61,7 +61,7 @@ public class PlayerService extends Service {
                 break;
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
                 eventLabel = "🦆 DUCK (Notification/Mail)";
-                stopNow = true; // On stoppe pour le Zen, mais on attend le GAIN pour repartir
+                stopNow = true;
                 break;
             default:
                 eventLabel = "❓ EVENT_" + focusChange;
@@ -86,6 +86,10 @@ public class PlayerService extends Service {
         super.onCreate();
         FileLogger.log(this, "🚀 SERVICE : Initialisation...");
         createNotificationChannel();
+        
+        // 🛡️ LE BOUCLIER EST ICI : Déclaration immédiate en Foreground
+        showNotification("Connecté et en veille...");
+
         mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         mp3play = new Mp3play(this, "/sdcard/Music");
         mp3play.setListener(path -> {
@@ -101,6 +105,8 @@ public class PlayerService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        // 🛡️ RENFORCEMENT : On s'assure que la notification est maintenue
+        showNotification("Moteur Audio Actif");
         return START_STICKY;
     }
 
@@ -142,7 +148,10 @@ public class PlayerService extends Service {
         userActivePlayback = true;
         requestFocus();
         this.currentTrackIndex = index;
-        mp3play.playFile(trackList.get(index));
+        
+        String currentPath = trackList.get(index);
+        showNotification("Évasion : " + new File(currentPath).getName());
+        mp3play.playFile(currentPath);
     }
 
     public void playNext() {
@@ -153,6 +162,7 @@ public class PlayerService extends Service {
             currentTrackIndex = (currentTrackIndex + 1) % trackList.size();
             playTrackAtIndex(currentTrackIndex);
         } else {
+            showNotification("Évasion : Mode Aléatoire...");
             mp3play.playRandom();
         }
     }

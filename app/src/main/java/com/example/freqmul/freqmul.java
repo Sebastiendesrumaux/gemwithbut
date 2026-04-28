@@ -37,8 +37,8 @@ public class freqmul extends AppCompatActivity {
             handleHandshake();
             mService.getMp3play().setListener(path -> {
                 runOnUiThread(() -> {
-                    if (mService.isSequentialMode()) mService.playNext();
-                    else mService.showNotification("Évasion Random : " + new File(path).getName());
+                    // CORRECTION : On relance via le Service pour TOUJOURS garder le Focus
+                    mService.playNext();
                 });
             });
         }
@@ -122,7 +122,8 @@ public class freqmul extends AppCompatActivity {
                 FileLogger.log(this, "🔘 UI: Play Random");
                 mService.setSequentialMode(false);
                 pushStateToService();
-                mService.getMp3play().playRandom();
+                // CORRECTION : On passe par le Service pour négocier le Focus Audio !
+                mService.playNext();
             }
         });
 
