@@ -28,27 +28,23 @@ public class PlayerService extends Service {
     private ArrayList<String> trackList = new ArrayList<>();
     private boolean userActivePlayback = false;
 
-    // --- MONITOR SYSTÈME (Périphériques, Batterie, Écran) ---
     private final BroadcastReceiver mSystemReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if (Intent.ACTION_HEADSET_PLUG.equals(action)) {
                 int state = intent.getIntExtra("state", -1);
-                FileLogger.log(context, (state == 1 ? "🎧 Branché" : "🎧 Débranché"));
+                FileLogger.log(context, (state == 1 ? "🎧 Casque: Connecté" : "🎧 Casque: Déconnecté"));
             } else if ("android.media.VOLUME_CHANGED_ACTION".equals(action)) {
                 int newVol = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_VALUE", -1);
                 FileLogger.log(context, "🔊 Vol: " + newVol);
             } else if (Intent.ACTION_BATTERY_CHANGED.equals(action)) {
                 int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
-                FileLogger.log(context, "🔋 Batterie: " + level + "%");
+                FileLogger.log(context, "🔋 Batt: " + level + "%");
             } else if (Intent.ACTION_SCREEN_ON.equals(action)) {
-                FileLogger.log(context, "📱 Écran Allumé");
+                FileLogger.log(context, "📱 Écran: ON");
             } else if (Intent.ACTION_SCREEN_OFF.equals(action)) {
-                FileLogger.log(context, "🕶️ Écran Éteint (Veille)");
-            } else if (Build.VERSION.SDK_INT >= 21 && PowerManager.ACTION_POWER_SAVE_MODE_CHANGED.equals(action)) {
-                PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-                FileLogger.log(context, "⚡ Éco Énergie: " + (pm.isPowerSaveMode() ? "ON" : "OFF"));
+                FileLogger.log(context, "🕶️ Écran: OFF");
             }
         }
     };
@@ -60,21 +56,33 @@ public class PlayerService extends Service {
     private final AudioManager.OnAudioFocusChangeListener mFocusListener = focusChange -> {
         String eventLabel;
         switch (focusChange) {
-            case AudioManager.AUDIOFOCUS_GAIN: eventLabel = "🟢 GAIN"; break;
-            case AudioManager.AUDIOFOCUS_LOSS: eventLabel = "🔴 LOSS"; break;
-            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT: eventLabel = "🟡 LOSS_TRANS"; break;
+            case AudioManager.AUDIOFOCUS_GAIN: eventLabel = "🟢 GAIN (Autorisé)"; break;
+            case AudioManager.AUDIOFOCUS_LOSS: eventLabel = "🔴 LOSS (Définitif)"; break;
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT: eventLabel = "🟡 LOSS_TRANS (Appel/IA)"; break;
             default: eventLabel = "❓ EVENT_" + focusChange;
         }
-        FileLogger.log(this, "🎧 Focus : " + eventLabel);
+        
+        FileLogger.log(this, "🤖 SYSTÈME : Focus -> " + eventLabel);
+
         if (mp3play == null) return;
-        if (focusChange != AudioManager.AUDIOFOCUS_GAIN) mp3play.stop();
-        else if (userActivePlayback && mp3play.getCurrentPath() != null) mp3play.restartCurrent();
+
+        if (focusChange != AudioManager.AUDIOFOCUS_GAIN) {
+            FileLogger.log(this, "🧠 LOGIQUE : Interruption immédiate du moteur.");
+            mp3play.stop();
+        } else {
+            if (userActivePlayback) {
+                FileLogger.log(this, "🧠 LOGIQUE : L'utilisateur voulait écouter (Intention=Active). Reprise !");
+                mp3play.restartCurrent();
+            } else {
+                FileLogger.log(this, "🧠 LOGIQUE : Focus obtenu mais l'utilisateur est en STOP. On reste muet.");
+            }
+        }
     };
 
     @Override
     public void onCreate() {
         super.onCreate();
-        FileLogger.log(this, "🚀 Service Démarré");
+        FileLogger.log(this, "🚀 SERVICE : Initialisation...");
         createNotificationChannel();
         mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         mp3play = new Mp3play(this, "/sdcard/Music");
@@ -83,25 +91,24 @@ public class PlayerService extends Service {
             else showNotification("Évasion : " + new File(path).getName());
         });
 
-        // Enregistrement des capteurs
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_HEADSET_PLUG);
         filter.addAction("android.media.VOLUME_CHANGED_ACTION");
         filter.addAction(Intent.ACTION_BATTERY_CHANGED);
         filter.addAction(Intent.ACTION_SCREEN_ON);
         filter.addAction(Intent.ACTION_SCREEN_OFF);
-        if (Build.VERSION.SDK_INT >= 21) filter.addAction(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED);
         registerReceiver(mSystemReceiver, filter);
     }
 
     public void stopPlayback() {
+        FileLogger.log(this, "👤 USAGER : Clic sur [STOP]");
         userActivePlayback = false;
         mp3play.stop();
         abandonFocus();
-        FileLogger.log(this, "🔘 UI: Stop manuel");
     }
 
     private void requestFocus() {
+        FileLogger.log(this, "🧠 LOGIQUE : Demande de canal audio au système...");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             mFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
                 .setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
@@ -114,25 +121,29 @@ public class PlayerService extends Service {
     }
 
     private void abandonFocus() {
+        FileLogger.log(this, "🧠 LOGIQUE : Abandon du canal audio.");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && mFocusRequest != null) mAudioManager.abandonAudioFocusRequest(mFocusRequest);
         else mAudioManager.abandonAudioFocus(mFocusListener);
     }
 
     public void playTrackAtIndex(int index) {
         if (trackList == null || trackList.isEmpty() || index >= trackList.size()) return;
-        requestFocus();
+        FileLogger.log(this, "👤 USAGER : Clic sur [PLAY/NEXT]");
         userActivePlayback = true;
+        requestFocus();
         this.currentTrackIndex = index;
         mp3play.playFile(trackList.get(index));
     }
 
     public void playNext() {
         if (trackList == null || trackList.isEmpty()) return;
-        userActivePlayback = true;
         if (sequentialMode) {
             currentTrackIndex = (currentTrackIndex + 1) % trackList.size();
             playTrackAtIndex(currentTrackIndex);
         } else {
+            FileLogger.log(this, "👤 USAGER : Clic sur [RANDOM]");
+            userActivePlayback = true;
+            requestFocus();
             mp3play.playRandom();
         }
     }
@@ -168,7 +179,7 @@ public class PlayerService extends Service {
 
     @Override
     public void onDestroy() {
-        FileLogger.log(this, "🛑 Service détruit");
+        FileLogger.log(this, "🛑 SERVICE : Destruction");
         unregisterReceiver(mSystemReceiver);
         if (mp3play != null) mp3play.stop();
         abandonFocus();
