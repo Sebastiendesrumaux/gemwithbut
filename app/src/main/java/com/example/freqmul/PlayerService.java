@@ -1,8 +1,10 @@
 package com.example.freqmul;
 
 import android.app.*;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
@@ -23,6 +25,22 @@ public class PlayerService extends Service {
     private int currentTrackIndex = 0;
     private ArrayList<String> trackList = new ArrayList<>();
     private boolean userActivePlayback = false;
+
+    // --- MONITOR DE PÉRIPHÉRIQUES ---
+    private final BroadcastReceiver mPeripheralReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (Intent.ACTION_HEADSET_PLUG.equals(action)) {
+                int state = intent.getIntExtra("state", -1);
+                if (state == 0) FileLogger.log(context, "🎧 Casque/Jack débranché");
+                else if (state == 1) FileLogger.log(context, "🎧 Casque/Jack branché");
+            } else if ("android.media.VOLUME_CHANGED_ACTION".equals(action)) {
+                int newVol = intent.getIntExtra("android.media.EXTRA_VOLUME_STREAM_VALUE", -1);
+                FileLogger.log(context, "🔊 Volume Musique : " + newVol);
+            }
+        }
+    };
 
     public class LocalBinder extends Binder {
         PlayerService getService() { return PlayerService.this; }
@@ -45,7 +63,6 @@ public class PlayerService extends Service {
         } else {
             if (userActivePlayback && mp3play.getCurrentPath() != null) {
                 mp3play.restartCurrent();
-                showNotification("Évasion reprise");
             }
         }
     };
@@ -61,6 +78,12 @@ public class PlayerService extends Service {
             if (sequentialMode) playNext();
             else showNotification("Évasion Random : " + new File(path).getName());
         });
+
+        // Enregistrement des écouteurs système
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_HEADSET_PLUG);
+        filter.addAction("android.media.VOLUME_CHANGED_ACTION");
+        registerReceiver(mPeripheralReceiver, filter);
     }
 
     public void stopPlayback() {
@@ -149,6 +172,7 @@ public class PlayerService extends Service {
     @Override
     public void onDestroy() {
         FileLogger.log(this, "🛑 Service détruit");
+        unregisterReceiver(mPeripheralReceiver);
         if (mp3play != null) mp3play.stop();
         abandonFocus();
         super.onDestroy();
