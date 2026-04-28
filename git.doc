@@ -1,0 +1,4 @@
+Bifurquer (après un undo ou au sommet) ./create_subbranch.sh
+Sauver tes tests (sans toucher au main) ./save_on_subbranch.sh
+Valider ton test comme version finale ./make_subbranch_main_branch.sh
+Abandonner et revenir au propre ./back_to_main_branch_extremite.sh
