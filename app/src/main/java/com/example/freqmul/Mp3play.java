@@ -6,6 +6,7 @@ import android.media.PlaybackParams;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Random;
+import java.util.Locale;
 
 public class Mp3play {
     public interface Mp3Listener { void onTrackCompletion(String path); }
@@ -21,6 +22,20 @@ public class Mp3play {
         this.context = context;
         this.mp3 = FileUtilsMp3.loadJson();
         if (mp3 == null || mp3.isEmpty()) reloadList(rootPath);
+    }
+
+    private String getMusicalInfo(float k) {
+        double semitones = 12.0 * Math.log(k) / Math.log(2.0);
+        String sign = semitones >= 0 ? "+" : "";
+        String label = " (Microtonal)";
+        
+        double absSt = Math.abs(semitones);
+        if (absSt < 0.05) label = " (Unisson)";
+        else if (Math.abs(absSt - 0.5) < 0.1) label = " (1/4 de ton)";
+        else if (Math.abs(absSt - 1.0) < 0.1) label = " (1/2 ton)";
+        else if (Math.abs(absSt - 2.0) < 0.1) label = " (1 ton)";
+        
+        return String.format(Locale.US, "%s%.2f st%s", sign, semitones, label);
     }
 
     public void setFrequencyBounds(float min, float max) {
@@ -66,11 +81,8 @@ public class Mp3play {
         try {
             mediaPlayer.setDataSource(path);
             mediaPlayer.setOnCompletionListener(mp -> { if (listener != null) listener.onTrackCompletion(currentPath); });
-            
             mediaPlayer.setOnErrorListener((mp, what, extra) -> {
-                String err = "⚠️ Erreur Audio (" + what + ") sur : " + new File(path).getName();
-                UiLog.log(err);
-                FileLogger.log(context, err);
+                FileLogger.log(context, "⚠️ Erreur Audio sur : " + new File(path).getName());
                 return false; 
             });
 
@@ -82,12 +94,11 @@ public class Mp3play {
                 mediaPlayer.setPlaybackParams(p);
             }
             mediaPlayer.start();
+            String musicInfo = getMusicalInfo(k);
             UiLog.log("Playing (x" + String.format("%.4f", k) + ") : " + new File(path).getName());
-            FileLogger.log(context, "🎶 Joue : " + new File(path).getName() + " (x" + String.format("%.4f", k) + ")");
+            FileLogger.log(context, "🎶 Joue : " + new File(path).getName() + " | x" + String.format("%.4f", k) + " | " + musicInfo);
         } catch (Exception e) {
-            String err = "⚠️ Échec Ouverture : " + new File(path).getName() + " (" + e.getMessage() + ")";
-            UiLog.log(err);
-            FileLogger.log(context, err);
+            FileLogger.log(context, "⚠️ Échec Ouverture : " + new File(path).getName());
         }
     }
 
