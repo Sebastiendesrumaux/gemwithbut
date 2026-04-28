@@ -39,10 +39,12 @@ public class Mp3play {
     public ArrayList<String> getList() { return mp3; }
 
     public void reloadList(String rootPath) {
+        long startTime = System.currentTimeMillis();
         File root = new File(rootPath);
         mp3 = FileUtilsMp3.scanMp3(root);
         FileUtilsMp3.saveJson(context, mp3);
-        FileLogger.log(context, "📂 Scan dossier : " + rootPath + " (" + mp3.size() + " fichiers)");
+        long duration = System.currentTimeMillis() - startTime;
+        FileLogger.log(context, "📂 Scan : " + mp3.size() + " morceaux indexés en " + duration + "ms");
     }
 
     public void stop() {
@@ -64,6 +66,14 @@ public class Mp3play {
         try {
             mediaPlayer.setDataSource(path);
             mediaPlayer.setOnCompletionListener(mp -> { if (listener != null) listener.onTrackCompletion(currentPath); });
+            
+            mediaPlayer.setOnErrorListener((mp, what, extra) -> {
+                String err = "⚠️ Erreur Audio (" + what + ") sur : " + new File(path).getName();
+                UiLog.log(err);
+                FileLogger.log(context, err);
+                return false; 
+            });
+
             mediaPlayer.prepare();
             float k = mulMin + rng.nextFloat() * (mulMax - mulMin);
             if (android.os.Build.VERSION.SDK_INT >= 23) {
@@ -73,9 +83,11 @@ public class Mp3play {
             }
             mediaPlayer.start();
             UiLog.log("Playing (x" + String.format("%.4f", k) + ") : " + new File(path).getName());
-            FileLogger.log(context, "🎶 FullPath : " + path + " | Factor: " + String.format("%.4f", k));
+            FileLogger.log(context, "🎶 Joue : " + new File(path).getName() + " (x" + String.format("%.4f", k) + ")");
         } catch (Exception e) {
-            FileLogger.log(context, "❌ Error : " + e.getMessage());
+            String err = "⚠️ Échec Ouverture : " + new File(path).getName() + " (" + e.getMessage() + ")";
+            UiLog.log(err);
+            FileLogger.log(context, err);
         }
     }
 
