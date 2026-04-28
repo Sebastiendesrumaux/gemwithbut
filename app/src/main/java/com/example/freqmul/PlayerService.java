@@ -43,21 +43,40 @@ public class PlayerService extends Service {
 
     private final AudioManager.OnAudioFocusChangeListener mFocusListener = focusChange -> {
         String eventLabel;
+        boolean resumeAfter = false;
+        boolean stopNow = false;
+
         switch (focusChange) {
-            case AudioManager.AUDIOFOCUS_GAIN: eventLabel = "🟢 GAIN"; break;
-            case AudioManager.AUDIOFOCUS_LOSS: eventLabel = "🔴 LOSS"; break;
-            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT: eventLabel = "🟡 LOSS_TRANS (IA/Transcription)"; break;
-            default: eventLabel = "❓ EVENT_" + focusChange;
+            case AudioManager.AUDIOFOCUS_GAIN:
+                eventLabel = "🟢 GAIN (Reprise autorisée)";
+                resumeAfter = true;
+                break;
+            case AudioManager.AUDIOFOCUS_LOSS:
+                eventLabel = "🔴 LOSS (Définitif)";
+                stopNow = true;
+                break;
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+                eventLabel = "🟡 LOSS_TRANS (Appel/IA)";
+                stopNow = true;
+                break;
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+                eventLabel = "🦆 DUCK (Notification/Mail)";
+                stopNow = true; // On stoppe pour le Zen, mais on attend le GAIN pour repartir
+                break;
+            default:
+                eventLabel = "❓ EVENT_" + focusChange;
+                stopNow = true;
         }
+        
         FileLogger.log(this, "🤖 SYSTÈME : Focus -> " + eventLabel);
 
         if (mp3play == null) return;
 
-        if (focusChange != AudioManager.AUDIOFOCUS_GAIN) {
-            FileLogger.log(this, "🧠 LOGIQUE : Interruption immédiate du moteur.");
+        if (stopNow) {
+            FileLogger.log(this, "🧠 LOGIQUE : Pause temporaire.");
             mp3play.stop();
-        } else if (userActivePlayback) {
-            FileLogger.log(this, "🧠 LOGIQUE : Reprise (Intention=Active).");
+        } else if (resumeAfter && userActivePlayback) {
+            FileLogger.log(this, "🧠 LOGIQUE : Reprise automatique demandée.");
             mp3play.restartCurrent();
         }
     };
@@ -82,13 +101,12 @@ public class PlayerService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        // Indispensable pour que le service survive au swipe de l'interface
         return START_STICKY;
     }
 
     @Override
     public void onTaskRemoved(Intent rootIntent) {
-        FileLogger.log(this, "🕶️ UI : Interface balayée (Swipe), le service reste en veille.");
+        FileLogger.log(this, "🕶️ UI : Interface balayée (Swipe)");
         super.onTaskRemoved(rootIntent);
     }
 
