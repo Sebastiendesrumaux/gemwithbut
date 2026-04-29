@@ -33,7 +33,6 @@ public class PlayerService extends Service {
     private boolean userActivePlayback = false;
     private boolean isScanning = false;
 
-    // Interface pour prévenir l'activité du progrès du scan
     public interface ScanListener {
         void onScanStarted();
         void onScanFinished(int count);
@@ -69,7 +68,6 @@ public class PlayerService extends Service {
         });
     }
 
-    // --- LOGIQUE DE SCAN EN THREAD ---
     public void reloadListAsync(String treeUriStr) {
         if (isScanning) return;
         isScanning = true;
@@ -79,7 +77,6 @@ public class PlayerService extends Service {
             mp3play.reloadList(treeUriStr);
             this.trackList = mp3play.getList();
             
-            // On revient sur le thread principal pour mettre à jour l'UI
             new Handler(Looper.getMainLooper()).post(() -> {
                 isScanning = false;
                 if (scanListener != null) scanListener.onScanFinished(trackList.size());
@@ -132,8 +129,8 @@ public class PlayerService extends Service {
 
     public void stopPlayback() {
         userActivePlayback = false;
-        mp3play.stop();
-        abandonFocus();
+        if (mp3play != null) mp3play.stop();
+        abandonFocus(); // 🛡️ On libère le focus audio proprement
     }
 
     public class LocalBinder extends Binder { PlayerService getService() { return PlayerService.this; } }
@@ -167,5 +164,11 @@ public class PlayerService extends Service {
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Bouddha Player", NotificationManager.IMPORTANCE_LOW);
             getSystemService(NotificationManager.class).createNotificationChannel(channel);
         }
+    }
+
+    @Override
+    public void onDestroy() {
+        stopPlayback(); // 🛡️ Verrou final lors de la destruction du service
+        super.onDestroy();
     }
 }

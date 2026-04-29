@@ -58,9 +58,15 @@ public class Mp3play {
 
     public void stop() {
         if (mediaPlayer != null) {
-            try { mediaPlayer.stop(); } catch (Exception ignored) {}
-            mediaPlayer.release();
-            mediaPlayer = null;
+            try { 
+                if (mediaPlayer.isPlaying()) {
+                    mediaPlayer.stop(); 
+                }
+            } catch (Exception ignored) {}
+            finally {
+                mediaPlayer.release();
+                mediaPlayer = null;
+            }
         }
     }
 
@@ -69,7 +75,7 @@ public class Mp3play {
     }
 
     public void playFile(String uriStr) {
-        stop();
+        stop(); // 🛡️ On s'assure que tout est purgé avant de lancer la suite
         currentUriStr = uriStr;
         mediaPlayer = new MediaPlayer();
         try {

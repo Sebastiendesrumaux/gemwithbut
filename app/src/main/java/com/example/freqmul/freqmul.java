@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
@@ -41,6 +42,7 @@ public class freqmul extends AppCompatActivity {
             TextView tv = convertView.findViewById(android.R.id.text1);
             Button btnPlay = convertView.findViewById(R.id.btn_play_single);
             String uriStr = getItem(position);
+            
             try { 
                 String name = Uri.parse(uriStr).getLastPathSegment();
                 if (name != null && name.contains("/")) name = name.substring(name.lastIndexOf("/") + 1);
@@ -48,6 +50,7 @@ public class freqmul extends AppCompatActivity {
             } catch (Exception e) { tv.setText("Audio"); }
             
             int mode = (mService != null) ? mService.getLoopMode() : 0;
+            
             if (mode == 1) {
                 btnPlay.setText("∞1");
                 btnPlay.setTextColor(Color.parseColor("#FFA500"));
@@ -76,14 +79,14 @@ public class freqmul extends AppCompatActivity {
             mService = ((PlayerService.LocalBinder) service).getService();
             mBound = true;
             
-            // Installation du listener de scan
             mService.setScanListener(new PlayerService.ScanListener() {
                 @Override
                 public void onScanStarted() {
                     runOnUiThread(() -> {
                         btnUpdateList.setText("SCANNING...");
                         btnUpdateList.setEnabled(false);
-                        btnUpdateList.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.DKGRAY));
+                        // On force la couleur grise sombre pendant le scan
+                        btnUpdateList.setBackgroundTintList(ColorStateList.valueOf(Color.DKGRAY));
                     });
                 }
 
@@ -92,7 +95,9 @@ public class freqmul extends AppCompatActivity {
                     runOnUiThread(() -> {
                         btnUpdateList.setText("UPDATE LIST");
                         btnUpdateList.setEnabled(true);
-                        btnUpdateList.setBackgroundTintList(null); // Reset couleur
+                        // On restaure explicitement la couleur de base du thème Material (Gris/Bleu classique)
+                        // Cela évite le bug du bouton blanc "nu"
+                        btnUpdateList.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#455A64"))); 
                         refreshListFromService();
                         Toast.makeText(freqmul.this, "Scan terminé : " + count + " fichiers.", Toast.LENGTH_SHORT).show();
                     });
@@ -154,12 +159,16 @@ public class freqmul extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_freqmul);
         
-        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.READ_MEDIA_AUDIO}, 101);
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
 
         editMulMin = findViewById(R.id.edit_mul_min);
         editMulMax = findViewById(R.id.edit_mul_max);
         textRootPath = findViewById(R.id.text_root_path);
         btnUpdateList = findViewById(R.id.button_list_mp3);
+        
+        // On force la couleur de base au démarrage pour éviter toute incohérence
+        btnUpdateList.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#455A64")));
+
         UiLog.init(this, findViewById(R.id.list_log));
 
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
