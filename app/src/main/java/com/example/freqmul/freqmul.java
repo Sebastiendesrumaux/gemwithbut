@@ -14,9 +14,9 @@ import android.text.TextWatcher;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.*;
-import android.Manifest;
-import androidx.core.app.ActivityCompat;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import android.Manifest;
 import java.util.ArrayList;
 
 public class freqmul extends AppCompatActivity {
@@ -41,10 +41,14 @@ public class freqmul extends AppCompatActivity {
             Button btnPlay = convertView.findViewById(R.id.btn_play_single);
             String uriStr = getItem(position);
             
-            try { tv.setText(Uri.parse(uriStr).getLastPathSegment()); } catch (Exception e) { tv.setText("Fichier audio"); }
+            try { tv.setText(Uri.parse(uriStr).getLastPathSegment()); } catch (Exception e) { tv.setText("Audio"); }
             
-            if (mService != null && mService.isInfiniteMode()) {
-                btnPlay.setText("∞▶");
+            int mode = (mService != null) ? mService.getLoopMode() : 0;
+            if (mode == 1) {
+                btnPlay.setText("∞1");
+                btnPlay.setTextColor(Color.parseColor("#FFA500"));
+            } else if (mode == 2) {
+                btnPlay.setText("∞");
                 btnPlay.setTextColor(Color.parseColor("#FFA500"));
             } else {
                 btnPlay.setText("▶");
@@ -53,7 +57,6 @@ public class freqmul extends AppCompatActivity {
 
             btnPlay.setOnClickListener(v -> {
                 if (mBound) {
-                    FileLogger.log(freqmul.this, "🔘 UI: Single Track Mode [" + position + "]");
                     mService.setSingleTrackMode(true);
                     mService.playTrackAtIndex(position);
                 }
@@ -73,10 +76,8 @@ public class freqmul extends AppCompatActivity {
     };
 
     private void handleHandshake() {
-        if (mService.getMp3play().getCurrentPath() != null) aspirateStateFromService();
-        else pushStateToService();
         refreshListFromService();
-        updateInfiniteUI();
+        updateUI();
     }
 
     private void refreshListFromService() {
@@ -88,40 +89,30 @@ public class freqmul extends AppCompatActivity {
         }
     }
 
-    private void aspirateStateFromService() {
-        isUpdatingProgrammatically = true;
-        editMulMin.setText(String.valueOf(mService.getMp3play().getMulMin()));
-        editMulMax.setText(String.valueOf(mService.getMp3play().getMulMax()));
-        isUpdatingProgrammatically = false;
-    }
-
-    private void pushStateToService() {
+    private void updateUI() {
         if (!mBound) return;
-        try {
-            float min = Float.parseFloat(editMulMin.getText().toString());
-            float max = Float.parseFloat(editMulMax.getText().toString());
-            mService.getMp3play().setFrequencyBounds(min, max);
-        } catch (Exception ignored) {}
-    }
-
-    private void updateInfiniteUI() {
-        if (!mBound) return;
-        boolean isInf = mService.isInfiniteMode();
+        int mode = mService.getLoopMode();
         Button btnInf = findViewById(R.id.button_infinite);
         Button btnAll = findViewById(R.id.button_play_all);
         
-        if (isInf) {
-            btnInf.setText("∞ INF ON");
+        // Cycle : 0 (Off), 1 (∞1), 2 (∞ALL)
+        if (mode == 1) {
+            btnInf.setText("∞ TRK ON");
+            btnInf.setTextColor(Color.parseColor("#FFA500"));
+            btnAll.setText("ALL");
+            btnAll.setTextColor(Color.WHITE);
+        } else if (mode == 2) {
+            btnInf.setText("∞ ALL ON");
             btnInf.setTextColor(Color.parseColor("#FFA500"));
             btnAll.setText("ALL ∞");
             btnAll.setTextColor(Color.parseColor("#FFA500"));
         } else {
-            btnInf.setText("∞ INF OFF");
+            btnInf.setText("∞ OFF");
             btnInf.setTextColor(Color.WHITE);
             btnAll.setText("ALL");
             btnAll.setTextColor(Color.WHITE);
         }
-        if (adapter != null) adapter.notifyDataSetChanged();
+        adapter.notifyDataSetChanged();
     }
 
     @Override
@@ -129,7 +120,7 @@ public class freqmul extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_freqmul);
         
-        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.READ_MEDIA_AUDIO}, 101); 
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
 
         editMulMin = findViewById(R.id.edit_mul_min);
         editMulMax = findViewById(R.id.edit_mul_max);
@@ -140,9 +131,7 @@ public class freqmul extends AppCompatActivity {
         rootUriStr = prefs.getString("root_uri", "");
         editMulMin.setText(String.valueOf(prefs.getFloat("mul_min", 0.9438f)));
         editMulMax.setText(String.valueOf(prefs.getFloat("mul_max", 1.0594f)));
-        
-        if (rootUriStr.isEmpty()) textRootPath.setText("Aucun dossier configuré");
-        else textRootPath.setText("Dossier verrouillé via SAF");
+        textRootPath.setText(rootUriStr.isEmpty() ? "Choisir dossier" : "SAF Actif");
 
         adapter = new Mp3Adapter(this, mp3List);
         ((ListView)findViewById(R.id.list_mp3)).setAdapter(adapter);
@@ -153,15 +142,14 @@ public class freqmul extends AppCompatActivity {
 
         findViewById(R.id.button_infinite).setOnClickListener(v -> {
             if (mBound) {
-                mService.setInfiniteMode(!mService.isInfiniteMode());
-                updateInfiniteUI();
-                FileLogger.log(this, "🔘 UI: Mode Infini -> " + mService.isInfiniteMode());
+                int nextMode = (mService.getLoopMode() + 1) % 3;
+                mService.setLoopMode(nextMode);
+                updateUI();
             }
         });
 
         findViewById(R.id.button_list_mp3).setOnClickListener(v -> {
             if (mBound && !rootUriStr.isEmpty()) {
-                FileLogger.log(this, "🔘 UI: Refresh List");
                 mService.getMp3play().reloadList(rootUriStr);
                 refreshListFromService();
             }
@@ -171,7 +159,6 @@ public class freqmul extends AppCompatActivity {
             if (mBound) {
                 mService.setSequentialMode(true);
                 mService.setSingleTrackMode(false);
-                pushStateToService();
                 mService.playTrackAtIndex(0);
             }
         });
@@ -180,49 +167,27 @@ public class freqmul extends AppCompatActivity {
             if (mBound) {
                 mService.setSequentialMode(false);
                 mService.setSingleTrackMode(false);
-                pushStateToService();
                 mService.playNext();
             }
         });
 
-        findViewById(R.id.button_next).setOnClickListener(v -> { 
-            if (mBound) { FileLogger.log(this, "🔘 UI: Next"); mService.playNext(); }
-        });
+        findViewById(R.id.button_next).setOnClickListener(v -> { if (mBound) mService.playNext(); });
+        findViewById(R.id.button_stop).setOnClickListener(v -> { if (mBound) mService.stopPlayback(); });
         
-        findViewById(R.id.button_stop).setOnClickListener(v -> { 
-            if (mBound) mService.stopPlayback(); 
-        });
-
         findViewById(R.id.button_root_rep).setOnClickListener(v -> { 
-            if (mBound) mService.stopPlayback(); 
             startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), 1001); 
-        });
-
-        findViewById(R.id.button_reset_freq).setOnClickListener(v -> {
-            isUpdatingProgrammatically = true;
-            editMulMin.setText(String.valueOf(0.9438f));
-            editMulMax.setText(String.valueOf(1.0594f));
-            isUpdatingProgrammatically = false;
-            pushStateToService();
-            if (mBound && mService.getMp3play().getCurrentPath() != null) mService.getMp3play().restartCurrent();
-        });
-
-        findViewById(R.id.button_440).setOnClickListener(v -> {
-            isUpdatingProgrammatically = true;
-            editMulMin.setText("1.0");
-            editMulMax.setText("1.0");
-            isUpdatingProgrammatically = false;
-            pushStateToService();
-            if (mBound && mService.getMp3play().getCurrentPath() != null) mService.getMp3play().restartCurrent();
         });
 
         TextWatcher watcher = new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
             @Override public void afterTextChanged(Editable s) {
-                if (!isUpdatingProgrammatically && s.length() > 0 && !s.toString().equals(".") && !s.toString().equals("-")) {
-                    pushStateToService();
-                    if (mService != null && mService.getMp3play().getCurrentPath() != null) mService.getMp3play().restartCurrent();
+                if (mBound && s.length() > 0) {
+                    try {
+                        float min = Float.parseFloat(editMulMin.getText().toString());
+                        float max = Float.parseFloat(editMulMax.getText().toString());
+                        mService.getMp3play().setFrequencyBounds(min, max);
+                    } catch (Exception ignored) {}
                 }
             }
         };
@@ -236,11 +201,9 @@ public class freqmul extends AppCompatActivity {
         if (requestCode == 1001 && resultCode == RESULT_OK && data != null) {
             Uri treeUri = data.getData();
             if (treeUri != null) {
-                final int takeFlags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-                getContentResolver().takePersistableUriPermission(treeUri, takeFlags);
+                getContentResolver().takePersistableUriPermission(treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
                 rootUriStr = treeUri.toString();
-                textRootPath.setText("Dossier verrouillé via SAF");
-                FileLogger.log(this, "📂 Persistance SAF validée");
+                textRootPath.setText("SAF Actif");
                 if (mBound) {
                     mService.getMp3play().reloadList(rootUriStr);
                     refreshListFromService();
@@ -256,11 +219,5 @@ public class freqmul extends AppCompatActivity {
             .putFloat("mul_min", Float.parseFloat(editMulMin.getText().toString()))
             .putFloat("mul_max", Float.parseFloat(editMulMax.getText().toString()))
             .putString("root_uri", rootUriStr).apply();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (mBound) { unbindService(connection); mBound = false; }
     }
 }
