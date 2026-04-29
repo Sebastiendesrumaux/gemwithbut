@@ -12,10 +12,11 @@ import android.net.Uri;
 import android.os.BatteryManager;
 import android.os.Binder;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import androidx.core.app.NotificationCompat;
 import java.util.ArrayList;
-import java.io.File;
 
 public class PlayerService extends Service {
     private static final String CHANNEL_ID = "BouddhaPlayerChannel";
@@ -25,11 +26,19 @@ public class PlayerService extends Service {
     private AudioFocusRequest mFocusRequest;
     
     private boolean sequentialMode = false;
-    private int loopMode = 0; // 0: OFF, 1: Single Track Repeat, 2: All Repeat
+    private int loopMode = 0; // 0: OFF, 1: Single, 2: All
     private boolean singleTrackMode = false;
     private int currentTrackIndex = 0;
     private ArrayList<String> trackList = new ArrayList<>();
     private boolean userActivePlayback = false;
+    private boolean isScanning = false;
+
+    // Interface pour prévenir l'activité du progrès du scan
+    public interface ScanListener {
+        void onScanStarted();
+        void onScanFinished(int count);
+    }
+    private ScanListener scanListener;
 
     private final AudioManager.OnAudioFocusChangeListener mFocusListener = focusChange -> {
         if (mp3play == null) return;
@@ -49,22 +58,33 @@ public class PlayerService extends Service {
         mp3play = new Mp3play(this);
         
         mp3play.setListener(path -> {
-            FileLogger.log(this, "🧠 LOGIQUE : Fin de piste (Mode:" + loopMode + " | Single:" + singleTrackMode + ")");
-            
-            if (loopMode == 1) {
-                // Cas ∞ TRK : On reboucle toujours sur le même
-                mp3play.restartCurrent();
-            } else if (loopMode == 2) {
-                // Cas ∞ ALL : Si on était sur un single lancé manuellement, on boucle dessus
-                // sinon on continue la liste avec wrap-around (retour au début)
+            if (loopMode == 1) mp3play.restartCurrent();
+            else if (loopMode == 2) {
                 if (singleTrackMode) mp3play.restartCurrent();
                 else playNextLogic(true);
             } else {
-                // Cas ∞ OFF : Si single track, on s'arrête. Sinon on continue sans boucler à la fin.
                 if (singleTrackMode) stopPlayback();
                 else playNextLogic(false);
             }
         });
+    }
+
+    // --- LOGIQUE DE SCAN EN THREAD ---
+    public void reloadListAsync(String treeUriStr) {
+        if (isScanning) return;
+        isScanning = true;
+        if (scanListener != null) scanListener.onScanStarted();
+
+        new Thread(() -> {
+            mp3play.reloadList(treeUriStr);
+            this.trackList = mp3play.getList();
+            
+            // On revient sur le thread principal pour mettre à jour l'UI
+            new Handler(Looper.getMainLooper()).post(() -> {
+                isScanning = false;
+                if (scanListener != null) scanListener.onScanFinished(trackList.size());
+            });
+        }).start();
     }
 
     private void playNextLogic(boolean wrapAround) {
@@ -128,6 +148,7 @@ public class PlayerService extends Service {
     public void setSingleTrackMode(boolean m) { this.singleTrackMode = m; }
     public boolean isSingleTrackMode() { return singleTrackMode; }
     public void setTrackList(ArrayList<String> l) { this.trackList = l; }
+    public void setScanListener(ScanListener l) { this.scanListener = l; }
 
     public void showNotification(String message) {
         Intent notificationIntent = new Intent(this, freqmul.class);

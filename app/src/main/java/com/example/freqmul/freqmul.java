@@ -18,12 +18,12 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import android.Manifest;
 import java.util.ArrayList;
-import java.io.File;
 
 public class freqmul extends AppCompatActivity {
     private static final String PREFS_NAME = "freqmul_prefs";
     private EditText editMulMin, editMulMax;
     private TextView textRootPath;
+    private Button btnUpdateList;
     private String rootUriStr = "";
     private final ArrayList<String> mp3List = new ArrayList<>();
     private Mp3Adapter adapter;
@@ -41,28 +41,23 @@ public class freqmul extends AppCompatActivity {
             TextView tv = convertView.findViewById(android.R.id.text1);
             Button btnPlay = convertView.findViewById(R.id.btn_play_single);
             String uriStr = getItem(position);
-            
             try { 
                 String name = Uri.parse(uriStr).getLastPathSegment();
                 if (name != null && name.contains("/")) name = name.substring(name.lastIndexOf("/") + 1);
                 tv.setText(name); 
-            } catch (Exception e) { tv.setText("Fichier audio"); }
+            } catch (Exception e) { tv.setText("Audio"); }
             
             int mode = (mService != null) ? mService.getLoopMode() : 0;
-            
-            // LOGIQUE DEMANDÉE : Seul le mode 1 (Single Repeat) affiche l'infini sur les lignes.
             if (mode == 1) {
                 btnPlay.setText("∞1");
                 btnPlay.setTextColor(Color.parseColor("#FFA500"));
             } else {
-                // En mode 0 ET en mode 2 (All Repeat), on affiche le triangle simple
                 btnPlay.setText("▶");
                 btnPlay.setTextColor(Color.WHITE);
             }
 
             btnPlay.setOnClickListener(v -> {
                 if (mBound) {
-                    // LOGIQUE DEMANDÉE : Si on est en mode 2, on repasse en mode 0 avant de jouer l'individu.
                     if (mService.getLoopMode() == 2) {
                         mService.setLoopMode(0);
                         updateUI();
@@ -80,6 +75,30 @@ public class freqmul extends AppCompatActivity {
         public void onServiceConnected(ComponentName className, IBinder service) {
             mService = ((PlayerService.LocalBinder) service).getService();
             mBound = true;
+            
+            // Installation du listener de scan
+            mService.setScanListener(new PlayerService.ScanListener() {
+                @Override
+                public void onScanStarted() {
+                    runOnUiThread(() -> {
+                        btnUpdateList.setText("SCANNING...");
+                        btnUpdateList.setEnabled(false);
+                        btnUpdateList.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.DKGRAY));
+                    });
+                }
+
+                @Override
+                public void onScanFinished(int count) {
+                    runOnUiThread(() -> {
+                        btnUpdateList.setText("UPDATE LIST");
+                        btnUpdateList.setEnabled(true);
+                        btnUpdateList.setBackgroundTintList(null); // Reset couleur
+                        refreshListFromService();
+                        Toast.makeText(freqmul.this, "Scan terminé : " + count + " fichiers.", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+
             handleHandshake();
         }
         @Override public void onServiceDisconnected(ComponentName arg) { mBound = false; }
@@ -140,6 +159,7 @@ public class freqmul extends AppCompatActivity {
         editMulMin = findViewById(R.id.edit_mul_min);
         editMulMax = findViewById(R.id.edit_mul_max);
         textRootPath = findViewById(R.id.text_root_path);
+        btnUpdateList = findViewById(R.id.button_list_mp3);
         UiLog.init(this, findViewById(R.id.list_log));
 
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
@@ -163,10 +183,9 @@ public class freqmul extends AppCompatActivity {
             }
         });
 
-        findViewById(R.id.button_list_mp3).setOnClickListener(v -> {
+        btnUpdateList.setOnClickListener(v -> {
             if (mBound && !rootUriStr.isEmpty()) {
-                mService.getMp3play().reloadList(rootUriStr);
-                refreshListFromService();
+                mService.reloadListAsync(rootUriStr);
             }
         });
 
@@ -230,8 +249,7 @@ public class freqmul extends AppCompatActivity {
                 rootUriStr = treeUri.toString();
                 textRootPath.setText("SAF Actif");
                 if (mBound) {
-                    mService.getMp3play().reloadList(rootUriStr);
-                    refreshListFromService();
+                    mService.reloadListAsync(rootUriStr);
                 }
             }
         }
