@@ -25,7 +25,7 @@ public class PlayerService extends Service {
     private AudioFocusRequest mFocusRequest;
     
     private boolean sequentialMode = false;
-    private int loopMode = 0; // 0: Off, 1: Single Track, 2: All/Playlist
+    private int loopMode = 0; // 0: OFF, 1: Single Track Repeat, 2: All Repeat
     private boolean singleTrackMode = false;
     private int currentTrackIndex = 0;
     private ArrayList<String> trackList = new ArrayList<>();
@@ -44,30 +44,25 @@ public class PlayerService extends Service {
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
-        showNotification("Moteur prêt");
+        showNotification("Moteur SAF prêt");
         mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         mp3play = new Mp3play(this);
         
         mp3play.setListener(path -> {
-            FileLogger.log(this, "🧠 LOGIQUE : Fin de piste (Mode:" + loopMode + ")");
+            FileLogger.log(this, "🧠 LOGIQUE : Fin de piste (Mode:" + loopMode + " | Single:" + singleTrackMode + ")");
             
             if (loopMode == 1) {
-                // BOUCLE MORCEAU UNIQUE
+                // Cas ∞ TRK : On reboucle toujours sur le même
                 mp3play.restartCurrent();
             } else if (loopMode == 2) {
-                // BOUCLE PLAYLIST
-                if (singleTrackMode) {
-                    mp3play.restartCurrent();
-                } else {
-                    playNextLogic(true);
-                }
+                // Cas ∞ ALL : Si on était sur un single lancé manuellement, on boucle dessus
+                // sinon on continue la liste avec wrap-around (retour au début)
+                if (singleTrackMode) mp3play.restartCurrent();
+                else playNextLogic(true);
             } else {
-                // MODE NORMAL (SANS BOUCLE)
-                if (singleTrackMode) {
-                    stopPlayback();
-                } else {
-                    playNextLogic(false);
-                }
+                // Cas ∞ OFF : Si single track, on s'arrête. Sinon on continue sans boucler à la fin.
+                if (singleTrackMode) stopPlayback();
+                else playNextLogic(false);
             }
         });
     }

@@ -18,6 +18,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import android.Manifest;
 import java.util.ArrayList;
+import java.io.File;
 
 public class freqmul extends AppCompatActivity {
     private static final String PREFS_NAME = "freqmul_prefs";
@@ -41,22 +42,31 @@ public class freqmul extends AppCompatActivity {
             Button btnPlay = convertView.findViewById(R.id.btn_play_single);
             String uriStr = getItem(position);
             
-            try { tv.setText(Uri.parse(uriStr).getLastPathSegment()); } catch (Exception e) { tv.setText("Audio"); }
+            try { 
+                String name = Uri.parse(uriStr).getLastPathSegment();
+                if (name != null && name.contains("/")) name = name.substring(name.lastIndexOf("/") + 1);
+                tv.setText(name); 
+            } catch (Exception e) { tv.setText("Fichier audio"); }
             
             int mode = (mService != null) ? mService.getLoopMode() : 0;
+            
+            // LOGIQUE DEMANDÉE : Seul le mode 1 (Single Repeat) affiche l'infini sur les lignes.
             if (mode == 1) {
                 btnPlay.setText("∞1");
                 btnPlay.setTextColor(Color.parseColor("#FFA500"));
-            } else if (mode == 2) {
-                btnPlay.setText("∞");
-                btnPlay.setTextColor(Color.parseColor("#FFA500"));
             } else {
+                // En mode 0 ET en mode 2 (All Repeat), on affiche le triangle simple
                 btnPlay.setText("▶");
                 btnPlay.setTextColor(Color.WHITE);
             }
 
             btnPlay.setOnClickListener(v -> {
                 if (mBound) {
+                    // LOGIQUE DEMANDÉE : Si on est en mode 2, on repasse en mode 0 avant de jouer l'individu.
+                    if (mService.getLoopMode() == 2) {
+                        mService.setLoopMode(0);
+                        updateUI();
+                    }
                     mService.setSingleTrackMode(true);
                     mService.playTrackAtIndex(position);
                 }
@@ -76,6 +86,12 @@ public class freqmul extends AppCompatActivity {
     };
 
     private void handleHandshake() {
+        if (mService.getMp3play().getCurrentPath() != null) {
+            isUpdatingProgrammatically = true;
+            editMulMin.setText(String.valueOf(mService.getMp3play().getMulMin()));
+            editMulMax.setText(String.valueOf(mService.getMp3play().getMulMax()));
+            isUpdatingProgrammatically = false;
+        }
         refreshListFromService();
         updateUI();
     }
@@ -95,7 +111,6 @@ public class freqmul extends AppCompatActivity {
         Button btnInf = findViewById(R.id.button_infinite);
         Button btnAll = findViewById(R.id.button_play_all);
         
-        // Cycle : 0 (Off), 1 (∞1), 2 (∞ALL)
         if (mode == 1) {
             btnInf.setText("∞ TRK ON");
             btnInf.setTextColor(Color.parseColor("#FFA500"));
@@ -120,7 +135,7 @@ public class freqmul extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_freqmul);
         
-        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.READ_MEDIA_AUDIO}, 101);
 
         editMulMin = findViewById(R.id.edit_mul_min);
         editMulMax = findViewById(R.id.edit_mul_max);
@@ -178,11 +193,21 @@ public class freqmul extends AppCompatActivity {
             startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE), 1001); 
         });
 
+        findViewById(R.id.button_reset_freq).setOnClickListener(v -> {
+            isUpdatingProgrammatically = true;
+            editMulMin.setText("0.9438"); editMulMax.setText("1.0594");
+            isUpdatingProgrammatically = false;
+            if (mBound) {
+                mService.getMp3play().setFrequencyBounds(0.9438f, 1.0594f);
+                if (mService.getMp3play().getCurrentPath() != null) mService.getMp3play().restartCurrent();
+            }
+        });
+
         TextWatcher watcher = new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {}
             @Override public void afterTextChanged(Editable s) {
-                if (mBound && s.length() > 0) {
+                if (mBound && !isUpdatingProgrammatically && s.length() > 0) {
                     try {
                         float min = Float.parseFloat(editMulMin.getText().toString());
                         float max = Float.parseFloat(editMulMax.getText().toString());
