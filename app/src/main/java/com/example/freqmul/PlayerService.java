@@ -22,7 +22,10 @@ public class PlayerService extends Service {
     private Mp3play mp3play;
     private AudioManager mAudioManager;
     private AudioFocusRequest mFocusRequest;
+    
     private boolean sequentialMode = false;
+    private boolean infiniteMode = false;
+    private boolean singleTrackMode = false;
     private int currentTrackIndex = 0;
     private ArrayList<String> trackList = new ArrayList<>();
     private boolean userActivePlayback = false;
@@ -42,41 +45,27 @@ public class PlayerService extends Service {
     };
 
     private final AudioManager.OnAudioFocusChangeListener mFocusListener = focusChange -> {
-        String eventLabel;
         boolean resumeAfter = false;
         boolean stopNow = false;
 
         switch (focusChange) {
             case AudioManager.AUDIOFOCUS_GAIN:
-                eventLabel = "🟢 GAIN (Reprise autorisée)";
                 resumeAfter = true;
                 break;
             case AudioManager.AUDIOFOCUS_LOSS:
-                eventLabel = "🔴 LOSS (Définitif)";
-                stopNow = true;
-                break;
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-                eventLabel = "🟡 LOSS_TRANS (Appel/IA)";
-                stopNow = true;
-                break;
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-                eventLabel = "🦆 DUCK (Notification/Mail)";
                 stopNow = true;
                 break;
-            default:
-                eventLabel = "❓ EVENT_" + focusChange;
-                stopNow = true;
         }
-        
-        FileLogger.log(this, "🤖 SYSTÈME : Focus -> " + eventLabel);
 
         if (mp3play == null) return;
 
         if (stopNow) {
-            FileLogger.log(this, "🧠 LOGIQUE : Pause temporaire.");
+            FileLogger.log(this, "🧠 LOGIQUE : Pause due au focus audio.");
             mp3play.stop();
         } else if (resumeAfter && userActivePlayback) {
-            FileLogger.log(this, "🧠 LOGIQUE : Reprise automatique demandée.");
+            FileLogger.log(this, "🧠 LOGIQUE : Reprise automatique.");
             mp3play.restartCurrent();
         }
     };
@@ -86,15 +75,40 @@ public class PlayerService extends Service {
         super.onCreate();
         FileLogger.log(this, "🚀 SERVICE : Initialisation...");
         createNotificationChannel();
-        
-        // 🛡️ LE BOUCLIER EST ICI : Déclaration immédiate en Foreground
         showNotification("Connecté et en veille...");
 
         mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         mp3play = new Mp3play(this, "/sdcard/Music");
+        
+        // 🧠 C'est ici que le service décide de l'action à la fin du morceau (100% autonome)
         mp3play.setListener(path -> {
-            if (sequentialMode) playNext();
-            else showNotification("Évasion : " + new File(path).getName());
+            FileLogger.log(this, "🧠 LOGIQUE : Fin du morceau détectée.");
+            if (singleTrackMode) {
+                if (infiniteMode) {
+                    FileLogger.log(this, "🔄 INFINI : Rejoue le même morceau.");
+                    mp3play.restartCurrent();
+                } else {
+                    FileLogger.log(this, "⏹️ SINGLE : Fin du morceau, arrêt.");
+                    stopPlayback();
+                }
+            } else {
+                if (sequentialMode) {
+                    if (currentTrackIndex >= trackList.size() - 1) {
+                        if (infiniteMode) {
+                            FileLogger.log(this, "🔄 INFINI : Fin de l'arborescence, on boucle au début.");
+                            playTrackAtIndex(0);
+                        } else {
+                            FileLogger.log(this, "⏹️ ALL : Fin de liste, on s'arrête.");
+                            stopPlayback();
+                        }
+                    } else {
+                        playNextSequential();
+                    }
+                } else {
+                    FileLogger.log(this, "🔀 RAND : Morceau suivant aléatoire.");
+                    mp3play.playRandom();
+                }
+            }
         });
 
         IntentFilter filter = new IntentFilter();
@@ -105,15 +119,7 @@ public class PlayerService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        // 🛡️ RENFORCEMENT : On s'assure que la notification est maintenue
-        showNotification("Moteur Audio Actif");
         return START_STICKY;
-    }
-
-    @Override
-    public void onTaskRemoved(Intent rootIntent) {
-        FileLogger.log(this, "🕶️ UI : Interface balayée (Swipe)");
-        super.onTaskRemoved(rootIntent);
     }
 
     public void stopPlayback() {
@@ -126,9 +132,7 @@ public class PlayerService extends Service {
     private void requestFocus() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             mFocusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                .setAudioAttributes(new AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
+                .setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
                 .setAcceptsDelayedFocusGain(true)
                 .setOnAudioFocusChangeListener(mFocusListener).build();
             mAudioManager.requestAudioFocus(mFocusRequest);
@@ -138,8 +142,7 @@ public class PlayerService extends Service {
     }
 
     private void abandonFocus() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && mFocusRequest != null)
-            mAudioManager.abandonAudioFocusRequest(mFocusRequest);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && mFocusRequest != null) mAudioManager.abandonAudioFocusRequest(mFocusRequest);
         else mAudioManager.abandonAudioFocus(mFocusListener);
     }
 
@@ -148,19 +151,28 @@ public class PlayerService extends Service {
         userActivePlayback = true;
         requestFocus();
         this.currentTrackIndex = index;
-        
         String currentPath = trackList.get(index);
         showNotification("Évasion : " + new File(currentPath).getName());
         mp3play.playFile(currentPath);
     }
 
+    private void playNextSequential() {
+        if (trackList == null || trackList.isEmpty()) return;
+        userActivePlayback = true;
+        requestFocus();
+        currentTrackIndex = (currentTrackIndex + 1) % trackList.size();
+        String currentPath = trackList.get(currentTrackIndex);
+        showNotification("Évasion : " + new File(currentPath).getName());
+        mp3play.playFile(currentPath);
+    }
+
     public void playNext() {
+        singleTrackMode = false; // Désactive le single track si on force NEXT
         if (trackList == null || trackList.isEmpty()) return;
         userActivePlayback = true;
         requestFocus();
         if (sequentialMode) {
-            currentTrackIndex = (currentTrackIndex + 1) % trackList.size();
-            playTrackAtIndex(currentTrackIndex);
+            playNextSequential();
         } else {
             showNotification("Évasion : Mode Aléatoire...");
             mp3play.playRandom();
@@ -170,6 +182,10 @@ public class PlayerService extends Service {
     public Mp3play getMp3play() { return mp3play; }
     public void setSequentialMode(boolean mode) { this.sequentialMode = mode; }
     public boolean isSequentialMode() { return sequentialMode; }
+    public void setInfiniteMode(boolean mode) { this.infiniteMode = mode; }
+    public boolean isInfiniteMode() { return infiniteMode; }
+    public void setSingleTrackMode(boolean mode) { this.singleTrackMode = mode; }
+    public boolean isSingleTrackMode() { return singleTrackMode; }
     public void setTrackList(ArrayList<String> list) { this.trackList = list; }
 
     public void showNotification(String message) {
@@ -198,7 +214,6 @@ public class PlayerService extends Service {
 
     @Override
     public void onDestroy() {
-        FileLogger.log(this, "🛑 SERVICE : Destruction");
         unregisterReceiver(mSystemReceiver);
         if (mp3play != null) mp3play.stop();
         abandonFocus();

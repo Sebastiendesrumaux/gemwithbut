@@ -5,12 +5,15 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.provider.DocumentsContract;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.view.View;
+import android.view.ViewGroup;
 import android.widget.*;
 import android.Manifest;
 import androidx.core.app.ActivityCompat;
@@ -24,10 +27,41 @@ public class freqmul extends AppCompatActivity {
     private TextView textRootPath;
     private String rootPath;
     private final ArrayList<String> mp3List = new ArrayList<>();
-    private ArrayAdapter<String> adapter;
+    private Mp3Adapter adapter;
     private PlayerService mService;
     private boolean mBound = false;
     private boolean isUpdatingProgrammatically = false;
+
+    private class Mp3Adapter extends ArrayAdapter<String> {
+        public Mp3Adapter(Context context, ArrayList<String> objects) {
+            super(context, R.layout.list_item_freq, objects);
+        }
+        @Override
+        public View getView(int position, View convertView, ViewGroup parent) {
+            if (convertView == null) convertView = getLayoutInflater().inflate(R.layout.list_item_freq, parent, false);
+            TextView tv = convertView.findViewById(android.R.id.text1);
+            Button btnPlay = convertView.findViewById(R.id.btn_play_single);
+            String fullPath = getItem(position);
+            tv.setText(new File(fullPath).getName());
+            
+            if (mService != null && mService.isInfiniteMode()) {
+                btnPlay.setText("∞▶");
+                btnPlay.setTextColor(Color.parseColor("#FFA500")); // Orange
+            } else {
+                btnPlay.setText("▶");
+                btnPlay.setTextColor(Color.WHITE);
+            }
+
+            btnPlay.setOnClickListener(v -> {
+                if (mBound) {
+                    FileLogger.log(freqmul.this, "🔘 UI: Single Track Mode [" + position + "]");
+                    mService.setSingleTrackMode(true);
+                    mService.playTrackAtIndex(position);
+                }
+            });
+            return convertView;
+        }
+    }
 
     private final ServiceConnection connection = new ServiceConnection() {
         @Override
@@ -35,12 +69,6 @@ public class freqmul extends AppCompatActivity {
             mService = ((PlayerService.LocalBinder) service).getService();
             mBound = true;
             handleHandshake();
-            mService.getMp3play().setListener(path -> {
-                runOnUiThread(() -> {
-                    // CORRECTION : On relance via le Service pour TOUJOURS garder le Focus
-                    mService.playNext();
-                });
-            });
         }
         @Override public void onServiceDisconnected(ComponentName arg) { mBound = false; }
     };
@@ -49,6 +77,7 @@ public class freqmul extends AppCompatActivity {
         if (mService.getMp3play().getCurrentPath() != null) aspirateStateFromService();
         else pushStateToService();
         refreshListFromService();
+        updateInfiniteUI();
     }
 
     private void refreshListFromService() {
@@ -76,6 +105,26 @@ public class freqmul extends AppCompatActivity {
         } catch (Exception ignored) {}
     }
 
+    private void updateInfiniteUI() {
+        if (!mBound) return;
+        boolean isInf = mService.isInfiniteMode();
+        Button btnInf = findViewById(R.id.button_infinite);
+        Button btnAll = findViewById(R.id.button_play_all);
+        
+        if (isInf) {
+            btnInf.setText("∞ INF ON");
+            btnInf.setTextColor(Color.parseColor("#FFA500")); // Rétro-éclairé orange
+            btnAll.setText("ALL ∞");
+            btnAll.setTextColor(Color.parseColor("#FFA500"));
+        } else {
+            btnInf.setText("∞ INF OFF");
+            btnInf.setTextColor(Color.WHITE);
+            btnAll.setText("ALL");
+            btnAll.setTextColor(Color.WHITE);
+        }
+        if (adapter != null) adapter.notifyDataSetChanged();
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -93,12 +142,20 @@ public class freqmul extends AppCompatActivity {
         editMulMax.setText(String.valueOf(prefs.getFloat("mul_max", 1.0594f)));
         textRootPath.setText(rootPath);
 
-        adapter = new ArrayAdapter<>(this, R.layout.list_item_freq, mp3List);
+        adapter = new Mp3Adapter(this, mp3List);
         ((ListView)findViewById(R.id.list_mp3)).setAdapter(adapter);
 
         Intent intent = new Intent(this, PlayerService.class);
         startService(intent);
         bindService(intent, connection, Context.BIND_AUTO_CREATE);
+
+        findViewById(R.id.button_infinite).setOnClickListener(v -> {
+            if (mBound) {
+                mService.setInfiniteMode(!mService.isInfiniteMode());
+                updateInfiniteUI();
+                FileLogger.log(this, "🔘 UI: Mode Infini -> " + mService.isInfiniteMode());
+            }
+        });
 
         findViewById(R.id.button_list_mp3).setOnClickListener(v -> {
             if (mBound) {
@@ -112,6 +169,7 @@ public class freqmul extends AppCompatActivity {
             if (mBound) {
                 FileLogger.log(this, "🔘 UI: Play All (Sequential)");
                 mService.setSequentialMode(true);
+                mService.setSingleTrackMode(false); // Oublie le focus sur 1 track
                 pushStateToService();
                 mService.playTrackAtIndex(0);
             }
@@ -121,8 +179,8 @@ public class freqmul extends AppCompatActivity {
             if (mBound) {
                 FileLogger.log(this, "🔘 UI: Play Random");
                 mService.setSequentialMode(false);
+                mService.setSingleTrackMode(false); // Oublie le focus sur 1 track
                 pushStateToService();
-                // CORRECTION : On passe par le Service pour négocier le Focus Audio !
                 mService.playNext();
             }
         });
@@ -187,7 +245,7 @@ public class freqmul extends AppCompatActivity {
                 FileLogger.log(this, "📂 Dossier Base : " + rootPath + " (🔑 Persisté)");
                 if (mBound) {
                     mService.getMp3play().reloadList(rootPath);
-                    refreshListFromService();
+                    refreshListFromService(); // <-- Met automatiquement la liste à jour
                 }
             }
         }
