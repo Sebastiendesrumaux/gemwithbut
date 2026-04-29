@@ -8,13 +8,13 @@ import android.content.IntentFilter;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
+import android.net.Uri;
 import android.os.BatteryManager;
 import android.os.Binder;
 import android.os.Build;
 import android.os.IBinder;
 import androidx.core.app.NotificationCompat;
 import java.util.ArrayList;
-import java.io.File;
 
 public class PlayerService extends Service {
     private static final String CHANNEL_ID = "BouddhaPlayerChannel";
@@ -73,14 +73,15 @@ public class PlayerService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        FileLogger.log(this, "🚀 SERVICE : Initialisation...");
+        FileLogger.log(this, "🚀 SERVICE : Initialisation SAF...");
         createNotificationChannel();
         showNotification("Connecté et en veille...");
 
         mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-        mp3play = new Mp3play(this, "/sdcard/Music");
         
-        // 🧠 C'est ici que le service décide de l'action à la fin du morceau (100% autonome)
+        // CORRECTION ICI : Initialisation propre
+        mp3play = new Mp3play(this);
+        
         mp3play.setListener(path -> {
             FileLogger.log(this, "🧠 LOGIQUE : Fin du morceau détectée.");
             if (singleTrackMode) {
@@ -145,15 +146,19 @@ public class PlayerService extends Service {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && mFocusRequest != null) mAudioManager.abandonAudioFocusRequest(mFocusRequest);
         else mAudioManager.abandonAudioFocus(mFocusListener);
     }
+    
+    private String getSafeName(String uriStr) {
+        try { return Uri.parse(uriStr).getLastPathSegment(); } catch (Exception e) { return "Audio"; }
+    }
 
     public void playTrackAtIndex(int index) {
         if (trackList == null || trackList.isEmpty() || index >= trackList.size()) return;
         userActivePlayback = true;
         requestFocus();
         this.currentTrackIndex = index;
-        String currentPath = trackList.get(index);
-        showNotification("Évasion : " + new File(currentPath).getName());
-        mp3play.playFile(currentPath);
+        String currentUriStr = trackList.get(index);
+        showNotification("Évasion : " + getSafeName(currentUriStr));
+        mp3play.playFile(currentUriStr);
     }
 
     private void playNextSequential() {
@@ -161,13 +166,13 @@ public class PlayerService extends Service {
         userActivePlayback = true;
         requestFocus();
         currentTrackIndex = (currentTrackIndex + 1) % trackList.size();
-        String currentPath = trackList.get(currentTrackIndex);
-        showNotification("Évasion : " + new File(currentPath).getName());
-        mp3play.playFile(currentPath);
+        String currentUriStr = trackList.get(currentTrackIndex);
+        showNotification("Évasion : " + getSafeName(currentUriStr));
+        mp3play.playFile(currentUriStr);
     }
 
     public void playNext() {
-        singleTrackMode = false; // Désactive le single track si on force NEXT
+        singleTrackMode = false;
         if (trackList == null || trackList.isEmpty()) return;
         userActivePlayback = true;
         requestFocus();

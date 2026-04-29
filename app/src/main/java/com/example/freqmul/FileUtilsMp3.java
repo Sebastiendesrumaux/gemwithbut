@@ -1,8 +1,9 @@
 package com.example.freqmul;
 
 import android.content.Context;
+import android.net.Uri;
 import android.os.Environment;
-import android.widget.Toast;
+import androidx.documentfile.provider.DocumentFile;
 import org.json.JSONArray;
 import org.json.JSONException;
 import java.io.*;
@@ -13,35 +14,41 @@ public class FileUtilsMp3 {
     public static final String SYNG_DIR = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/freqmul";
     public static final String LMP3_FILE = SYNG_DIR + "/lmp3.json";
 
-    public static boolean ensurefreqmulDir(Context ctx) {
-        File f = new File(SYNG_DIR);
-        if (!f.exists()) {
-            if (!f.mkdirs()) { Toast.makeText(ctx, "Impossible de créer " + SYNG_DIR, Toast.LENGTH_LONG).show(); return false; }
-        }
-        return true;
-    }
-
-    public static ArrayList<String> scanMp3(File root) {
+    public static ArrayList<String> scanMp3(Context ctx, String treeUriStr) {
         ArrayList<String> list = new ArrayList<>();
-        walk(root, list);
+        if (treeUriStr == null || treeUriStr.isEmpty()) return list;
+        try {
+            Uri treeUri = Uri.parse(treeUriStr);
+            DocumentFile root = DocumentFile.fromTreeUri(ctx, treeUri);
+            if (root != null) {
+                walkSaf(root, list);
+            }
+        } catch (Exception e) {
+            FileLogger.log(ctx, "⚠️ Erreur Scan SAF : " + e.getMessage());
+        }
         return list;
     }
 
-    private static void walk(File dir, ArrayList<String> out) {
-        File[] children = dir.listFiles();
-        if (children == null) return;
-        for (File f : children) {
+    private static void walkSaf(DocumentFile dir, ArrayList<String> out) {
+        DocumentFile[] files = dir.listFiles();
+        for (DocumentFile f : files) {
             if (f.isDirectory()) {
-                if (!f.getName().startsWith(".")) walk(f, out);
+                walkSaf(f, out);
             } else {
-                String n = f.getName().toLowerCase();
-                if (n.endsWith(".mp3") || n.endsWith(".flac") || n.endsWith(".wav") || n.endsWith(".ogg") || n.endsWith(".m4a")) out.add(f.getAbsolutePath());
+                String n = f.getName();
+                if (n != null) {
+                    n = n.toLowerCase();
+                    if (n.endsWith(".mp3") || n.endsWith(".flac") || n.endsWith(".wav") || n.endsWith(".ogg") || n.endsWith(".m4a")) {
+                        out.add(f.getUri().toString()); // On stocke l'URI sécurisée
+                    }
+                }
             }
         }
     }
 
     public static boolean saveJson(Context ctx, ArrayList<String> list) {
-        if (!ensurefreqmulDir(ctx)) return false;
+        File f = new File(SYNG_DIR);
+        if (!f.exists()) f.mkdirs();
         JSONArray arr = new JSONArray();
         for (String s : list) arr.put(s);
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(LMP3_FILE))) {
@@ -59,10 +66,14 @@ public class FileUtilsMp3 {
             StringBuilder sb = new StringBuilder();
             String line;
             while ((line = br.readLine()) != null) sb.append(line);
-            JSONArray arr = new JSONArray(sb.toString());
-            ArrayList<String> list = new ArrayList<>();
-            for (int i = 0; i < arr.length(); i++) list.add(arr.getString(i));
-            return list;
-        } catch (IOException | JSONException e) { return null; }
+            return jsonToArrayList(sb.toString());
+        } catch (Exception e) { return null; }
+    }
+
+    private static ArrayList<String> jsonToArrayList(String json) throws JSONException {
+        JSONArray arr = new JSONArray(json);
+        ArrayList<String> list = new ArrayList<>();
+        for (int i = 0; i < arr.length(); i++) list.add(arr.getString(i));
+        return list;
     }
 }

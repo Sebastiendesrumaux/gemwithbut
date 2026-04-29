@@ -3,7 +3,8 @@ package com.example.freqmul;
 import android.content.Context;
 import android.media.MediaPlayer;
 import android.media.PlaybackParams;
-import java.io.File;
+import android.net.Uri;
+import androidx.documentfile.provider.DocumentFile;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.Locale;
@@ -14,28 +15,22 @@ public class Mp3play {
     private ArrayList<String> mp3;
     private final Random rng = new Random();
     private MediaPlayer mediaPlayer = null;
-    private String currentPath = null;
+    private String currentUriStr = null;
     private Mp3Listener listener;
     private float mulMin = 0.9438f, mulMax = 1.0594f;
 
-    public Mp3play(Context context, String rootPath) {
+    public Mp3play(Context context) {
         this.context = context;
         this.mp3 = FileUtilsMp3.loadJson();
-        if (mp3 == null || mp3.isEmpty()) reloadList(rootPath);
+        if (this.mp3 == null) this.mp3 = new ArrayList<>();
     }
 
-    private String getMusicalInfo(float k) {
-        double semitones = 12.0 * Math.log(k) / Math.log(2.0);
-        String sign = semitones >= 0 ? "+" : "";
-        String label = " (Microtonal)";
-        
-        double absSt = Math.abs(semitones);
-        if (absSt < 0.05) label = " (Unisson)";
-        else if (Math.abs(absSt - 0.5) < 0.1) label = " (1/4 de ton)";
-        else if (Math.abs(absSt - 1.0) < 0.1) label = " (1/2 ton)";
-        else if (Math.abs(absSt - 2.0) < 0.1) label = " (1 ton)";
-        
-        return String.format(Locale.US, "%s%.2f st%s", sign, semitones, label);
+    private String getFileName(String uriStr) {
+        try {
+            DocumentFile df = DocumentFile.fromSingleUri(context, Uri.parse(uriStr));
+            if (df != null && df.getName() != null) return df.getName();
+        } catch (Exception ignored) {}
+        try { return Uri.parse(uriStr).getLastPathSegment(); } catch (Exception e) { return "Inconnu"; }
     }
 
     public void setFrequencyBounds(float min, float max) {
@@ -53,13 +48,12 @@ public class Mp3play {
     public void setListener(Mp3Listener listener) { this.listener = listener; }
     public ArrayList<String> getList() { return mp3; }
 
-    public void reloadList(String rootPath) {
+    public void reloadList(String treeUriStr) {
         long startTime = System.currentTimeMillis();
-        File root = new File(rootPath);
-        mp3 = FileUtilsMp3.scanMp3(root);
+        mp3 = FileUtilsMp3.scanMp3(context, treeUriStr);
         FileUtilsMp3.saveJson(context, mp3);
         long duration = System.currentTimeMillis() - startTime;
-        FileLogger.log(context, "📂 Scan : " + mp3.size() + " morceaux indexés en " + duration + "ms");
+        FileLogger.log(context, "📂 Scan SAF : " + mp3.size() + " morceaux indexés en " + duration + "ms");
     }
 
     public void stop() {
@@ -74,15 +68,15 @@ public class Mp3play {
         if (mp3 != null && !mp3.isEmpty()) playFile(mp3.get(rng.nextInt(mp3.size())));
     }
 
-    public void playFile(String path) {
+    public void playFile(String uriStr) {
         stop();
-        currentPath = path;
+        currentUriStr = uriStr;
         mediaPlayer = new MediaPlayer();
         try {
-            mediaPlayer.setDataSource(path);
-            mediaPlayer.setOnCompletionListener(mp -> { if (listener != null) listener.onTrackCompletion(currentPath); });
+            mediaPlayer.setDataSource(context, Uri.parse(uriStr));
+            mediaPlayer.setOnCompletionListener(mp -> { if (listener != null) listener.onTrackCompletion(currentUriStr); });
             mediaPlayer.setOnErrorListener((mp, what, extra) -> {
-                FileLogger.log(context, "⚠️ Erreur Audio sur : " + new File(path).getName());
+                FileLogger.log(context, "⚠️ Erreur Audio SAF : " + getFileName(uriStr));
                 return false; 
             });
 
@@ -95,13 +89,26 @@ public class Mp3play {
             }
             mediaPlayer.start();
             String musicInfo = getMusicalInfo(k);
-            UiLog.log("Playing (x" + String.format("%.4f", k) + ") : " + new File(path).getName());
-            FileLogger.log(context, "🎶 Joue : " + new File(path).getName() + " | x" + String.format("%.4f", k) + " | " + musicInfo);
+            String fileName = getFileName(uriStr);
+            UiLog.log("Playing (x" + String.format("%.4f", k) + ") : " + fileName);
+            FileLogger.log(context, "🎶 Joue : " + fileName + " | x" + String.format("%.4f", k) + " | " + musicInfo);
         } catch (Exception e) {
-            FileLogger.log(context, "⚠️ Échec Ouverture : " + new File(path).getName());
+            FileLogger.log(context, "⚠️ Échec Ouverture SAF : " + getFileName(uriStr));
         }
     }
+    
+    private String getMusicalInfo(float k) {
+        double semitones = 12.0 * Math.log(k) / Math.log(2.0);
+        String sign = semitones >= 0 ? "+" : "";
+        String label = " (Microtonal)";
+        double absSt = Math.abs(semitones);
+        if (absSt < 0.05) label = " (Unisson)";
+        else if (Math.abs(absSt - 0.5) < 0.1) label = " (1/4 de ton)";
+        else if (Math.abs(absSt - 1.0) < 0.1) label = " (1/2 ton)";
+        else if (Math.abs(absSt - 2.0) < 0.1) label = " (1 ton)";
+        return String.format(Locale.US, "%s%.2f st%s", sign, semitones, label);
+    }
 
-    public String getCurrentPath() { return currentPath; }
-    public void restartCurrent() { if (currentPath != null) playFile(currentPath); }
+    public String getCurrentPath() { return currentUriStr; }
+    public void restartCurrent() { if (currentUriStr != null) playFile(currentUriStr); }
 }

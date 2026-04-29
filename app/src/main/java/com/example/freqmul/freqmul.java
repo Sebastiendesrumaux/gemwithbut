@@ -9,7 +9,6 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.provider.DocumentsContract;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
@@ -19,13 +18,12 @@ import android.Manifest;
 import androidx.core.app.ActivityCompat;
 import androidx.appcompat.app.AppCompatActivity;
 import java.util.ArrayList;
-import java.io.File;
 
 public class freqmul extends AppCompatActivity {
     private static final String PREFS_NAME = "freqmul_prefs";
     private EditText editMulMin, editMulMax;
     private TextView textRootPath;
-    private String rootPath;
+    private String rootUriStr = "";
     private final ArrayList<String> mp3List = new ArrayList<>();
     private Mp3Adapter adapter;
     private PlayerService mService;
@@ -41,12 +39,13 @@ public class freqmul extends AppCompatActivity {
             if (convertView == null) convertView = getLayoutInflater().inflate(R.layout.list_item_freq, parent, false);
             TextView tv = convertView.findViewById(android.R.id.text1);
             Button btnPlay = convertView.findViewById(R.id.btn_play_single);
-            String fullPath = getItem(position);
-            tv.setText(new File(fullPath).getName());
+            String uriStr = getItem(position);
+            
+            try { tv.setText(Uri.parse(uriStr).getLastPathSegment()); } catch (Exception e) { tv.setText("Fichier audio"); }
             
             if (mService != null && mService.isInfiniteMode()) {
                 btnPlay.setText("∞▶");
-                btnPlay.setTextColor(Color.parseColor("#FFA500")); // Orange
+                btnPlay.setTextColor(Color.parseColor("#FFA500"));
             } else {
                 btnPlay.setText("▶");
                 btnPlay.setTextColor(Color.WHITE);
@@ -113,7 +112,7 @@ public class freqmul extends AppCompatActivity {
         
         if (isInf) {
             btnInf.setText("∞ INF ON");
-            btnInf.setTextColor(Color.parseColor("#FFA500")); // Rétro-éclairé orange
+            btnInf.setTextColor(Color.parseColor("#FFA500"));
             btnAll.setText("ALL ∞");
             btnAll.setTextColor(Color.parseColor("#FFA500"));
         } else {
@@ -129,7 +128,8 @@ public class freqmul extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_freqmul);
-        if (android.os.Build.VERSION.SDK_INT >= 33) { ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101); }
+        
+        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.READ_MEDIA_AUDIO}, 101); 
 
         editMulMin = findViewById(R.id.edit_mul_min);
         editMulMax = findViewById(R.id.edit_mul_max);
@@ -137,10 +137,12 @@ public class freqmul extends AppCompatActivity {
         UiLog.init(this, findViewById(R.id.list_log));
 
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        rootPath = prefs.getString("root_path", "/sdcard/Music");
+        rootUriStr = prefs.getString("root_uri", "");
         editMulMin.setText(String.valueOf(prefs.getFloat("mul_min", 0.9438f)));
         editMulMax.setText(String.valueOf(prefs.getFloat("mul_max", 1.0594f)));
-        textRootPath.setText(rootPath);
+        
+        if (rootUriStr.isEmpty()) textRootPath.setText("Aucun dossier configuré");
+        else textRootPath.setText("Dossier verrouillé via SAF");
 
         adapter = new Mp3Adapter(this, mp3List);
         ((ListView)findViewById(R.id.list_mp3)).setAdapter(adapter);
@@ -158,18 +160,17 @@ public class freqmul extends AppCompatActivity {
         });
 
         findViewById(R.id.button_list_mp3).setOnClickListener(v -> {
-            if (mBound) {
+            if (mBound && !rootUriStr.isEmpty()) {
                 FileLogger.log(this, "🔘 UI: Refresh List");
-                mService.getMp3play().reloadList(rootPath);
+                mService.getMp3play().reloadList(rootUriStr);
                 refreshListFromService();
             }
         });
 
         findViewById(R.id.button_play_all).setOnClickListener(v -> {
             if (mBound) {
-                FileLogger.log(this, "🔘 UI: Play All (Sequential)");
                 mService.setSequentialMode(true);
-                mService.setSingleTrackMode(false); // Oublie le focus sur 1 track
+                mService.setSingleTrackMode(false);
                 pushStateToService();
                 mService.playTrackAtIndex(0);
             }
@@ -177,9 +178,8 @@ public class freqmul extends AppCompatActivity {
 
         findViewById(R.id.button_play_random).setOnClickListener(v -> {
             if (mBound) {
-                FileLogger.log(this, "🔘 UI: Play Random");
                 mService.setSequentialMode(false);
-                mService.setSingleTrackMode(false); // Oublie le focus sur 1 track
+                mService.setSingleTrackMode(false);
                 pushStateToService();
                 mService.playNext();
             }
@@ -199,7 +199,6 @@ public class freqmul extends AppCompatActivity {
         });
 
         findViewById(R.id.button_reset_freq).setOnClickListener(v -> {
-            FileLogger.log(this, "🔘 UI: Reset Freq");
             isUpdatingProgrammatically = true;
             editMulMin.setText(String.valueOf(0.9438f));
             editMulMax.setText(String.valueOf(1.0594f));
@@ -209,7 +208,6 @@ public class freqmul extends AppCompatActivity {
         });
 
         findViewById(R.id.button_440).setOnClickListener(v -> {
-            FileLogger.log(this, "🔘 UI: Back to 440Hz");
             isUpdatingProgrammatically = true;
             editMulMin.setText("1.0");
             editMulMax.setText("1.0");
@@ -240,12 +238,12 @@ public class freqmul extends AppCompatActivity {
             if (treeUri != null) {
                 final int takeFlags = data.getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
                 getContentResolver().takePersistableUriPermission(treeUri, takeFlags);
-                rootPath = "/sdcard/" + DocumentsContract.getTreeDocumentId(treeUri).split(":")[1];
-                textRootPath.setText(rootPath);
-                FileLogger.log(this, "📂 Dossier Base : " + rootPath + " (🔑 Persisté)");
+                rootUriStr = treeUri.toString();
+                textRootPath.setText("Dossier verrouillé via SAF");
+                FileLogger.log(this, "📂 Persistance SAF validée");
                 if (mBound) {
-                    mService.getMp3play().reloadList(rootPath);
-                    refreshListFromService(); // <-- Met automatiquement la liste à jour
+                    mService.getMp3play().reloadList(rootUriStr);
+                    refreshListFromService();
                 }
             }
         }
@@ -257,7 +255,7 @@ public class freqmul extends AppCompatActivity {
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
             .putFloat("mul_min", Float.parseFloat(editMulMin.getText().toString()))
             .putFloat("mul_max", Float.parseFloat(editMulMax.getText().toString()))
-            .putString("root_path", rootPath).apply();
+            .putString("root_uri", rootUriStr).apply();
     }
 
     @Override
