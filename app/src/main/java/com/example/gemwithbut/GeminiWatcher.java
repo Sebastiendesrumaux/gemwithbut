@@ -28,8 +28,8 @@ public class GeminiWatcher extends AccessibilityService {
             lastMacroTimestamp = intent.getLongExtra("timestamp", 0);
             isWaiting = true;
             feedback(ToneGenerator.TONE_PROP_ACK, 60);
-            updateNotification("L'IA médite...", "Le Watcher cherche le signal vocal.");
-            FileLogger.log(context, "📡 Intent START reçu : En attente du bouton...");
+            updateNotification("L'IA médite...", "Le Watcher cherche le dernier message.");
+            FileLogger.log(context, "📡 Attente du bouton TTS le plus récent...");
         }
     };
 
@@ -38,29 +38,25 @@ public class GeminiWatcher extends AccessibilityService {
         toneGen = new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 80);
         vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
         createChannel();
-        
         IntentFilter filter = new IntentFilter("com.example.gemwithbut.START_WATCHING");
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             registerReceiver(macroReceiver, filter, Context.RECEIVER_EXPORTED);
         } else {
             registerReceiver(macroReceiver, filter);
         }
-        updateNotification("Sentinelle active", "À l'écoute des murmures de la machine.");
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        // On écoute tout : changement de fenêtre ou de contenu
         if (!isWaiting) return;
-        
         AccessibilityNodeInfo root = getRootInActiveWindow();
         if (root == null) return;
 
-        if (findAndClick(root)) {
+        // On lance la recherche inversée
+        if (findLastAndClick(root)) {
             isWaiting = false;
             feedback(ToneGenerator.TONE_CDMA_PIP, 120);
-            updateNotification("✨ Instant de clarté", "Bouton détecté et cliqué !");
-            FileLogger.log(this, "✅ Bouton trouvé et cliqué automatiquement.");
+            updateNotification("✨ Instant de clarté", "Dernier bouton cliqué !");
             
             Intent ready = new Intent("com.example.gemwithbut.GEMINI_READY");
             ready.putExtra("original_timestamp", lastMacroTimestamp);
@@ -69,18 +65,31 @@ public class GeminiWatcher extends AccessibilityService {
         root.recycle();
     }
 
-    private boolean findAndClick(AccessibilityNodeInfo node) {
+    private boolean findLastAndClick(AccessibilityNodeInfo node) {
         if (node == null) return false;
 
+        // PARCOURS INVERSÉ : On commence par le dernier enfant (le bas de l'écran)
+        for (int i = node.getChildCount() - 1; i >= 0; i--) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child != null) {
+                if (findLastAndClick(child)) {
+                    child.recycle();
+                    return true;
+                }
+                child.recycle();
+            }
+        }
+
+        // Si aucun enfant n'a matché, on vérifie le noeud lui-même
         CharSequence text = node.getText();
         CharSequence desc = node.getContentDescription();
 
-        // On élargit les critères de détection (plus de synonymes)
         if (isMatch(text) || isMatch(desc)) {
             if (node.isClickable()) {
                 node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                 return true;
             }
+            // Remontée vers le parent cliquable
             AccessibilityNodeInfo parent = node.getParent();
             while (parent != null) {
                 if (parent.isClickable()) {
@@ -88,19 +97,10 @@ public class GeminiWatcher extends AccessibilityService {
                     parent.recycle();
                     return true;
                 }
-                AccessibilityNodeInfo oldParent = parent;
+                AccessibilityNodeInfo old = parent;
                 parent = parent.getParent();
-                oldParent.recycle();
+                old.recycle();
             }
-        }
-
-        for (int i = 0; i < node.getChildCount(); i++) {
-            AccessibilityNodeInfo child = node.getChild(i);
-            if (findAndClick(child)) {
-                if (child != null) child.recycle();
-                return true;
-            }
-            if (child != null) child.recycle();
         }
         return false;
     }
@@ -108,9 +108,7 @@ public class GeminiWatcher extends AccessibilityService {
     private boolean isMatch(CharSequence cs) {
         if (cs == null) return false;
         String t = cs.toString().toLowerCase();
-        return t.contains("écouter") || t.contains("listen") || 
-               t.contains("tts") || t.contains("vocal") || 
-               t.contains("haut-parleur") || t.contains("speaker");
+        return t.contains("écouter") || t.contains("listen") || t.contains("tts") || t.contains("vocal");
     }
 
     private void feedback(int tone, int ms) {
@@ -124,7 +122,6 @@ public class GeminiWatcher extends AccessibilityService {
                 .setSmallIcon(android.R.drawable.ic_btn_speak_now)
                 .setContentTitle(title)
                 .setContentText(text)
-                .setSubText("Écologie d'endroit")
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(isWaiting);
         nm.notify(1, builder.build());
