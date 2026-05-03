@@ -14,7 +14,6 @@ import android.os.Vibrator;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import androidx.core.app.NotificationCompat;
-import java.util.List;
 
 public class GeminiWatcher extends AccessibilityService {
     private long lastMacroTimestamp = 0;
@@ -40,7 +39,7 @@ public class GeminiWatcher extends AccessibilityService {
         createChannel();
         
         IntentFilter filter = new IntentFilter("com.example.gemwithbut.START_WATCHING");
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(macroReceiver, filter, Context.RECEIVER_EXPORTED);
         } else {
             registerReceiver(macroReceiver, filter);
@@ -51,40 +50,77 @@ public class GeminiWatcher extends AccessibilityService {
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
         if (!isWaiting) return;
+        
         AccessibilityNodeInfo root = getRootInActiveWindow();
         if (root == null) return;
 
-        if (findText(root, "Écouter la réponse") || findText(root, "Listen")) {
+        if (findAndClick(root)) {
             isWaiting = false;
             feedback(ToneGenerator.TONE_CDMA_PIP, 120);
-            updateNotification("✨ Instant de clarté", "Gemini a terminé. Écoute quand tu seras prêt.");
+            updateNotification("✨ Instant de clarté", "La voix de Gemini s'élève. Bonne écoute.");
             
-            Intent intent = new Intent("com.example.gemwithbut.GEMINI_READY");
-            intent.putExtra("original_timestamp", lastMacroTimestamp);
-            sendBroadcast(intent);
+            Intent ready = new Intent("com.example.gemwithbut.GEMINI_READY");
+            ready.putExtra("original_timestamp", lastMacroTimestamp);
+            sendBroadcast(ready);
         }
         root.recycle();
     }
 
-    private boolean findText(AccessibilityNodeInfo node, String text) {
-        List<AccessibilityNodeInfo> list = node.findAccessibilityNodeInfosByText(text);
-        return list != null && !list.isEmpty();
+    private boolean findAndClick(AccessibilityNodeInfo node) {
+        if (node == null) return false;
+
+        CharSequence text = node.getText();
+        CharSequence desc = node.getContentDescription();
+
+        if ((text != null && isMatch(text.toString())) || (desc != null && isMatch(desc.toString()))) {
+            if (node.isClickable()) {
+                node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                return true;
+            }
+            AccessibilityNodeInfo parent = node.getParent();
+            while (parent != null) {
+                boolean clicked = false;
+                if (parent.isClickable()) {
+                    parent.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+                    clicked = true;
+                }
+                AccessibilityNodeInfo nextParent = parent.getParent();
+                parent.recycle(); // Nettoyage indispensable !
+                if (clicked) return true;
+                parent = nextParent;
+            }
+        }
+
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child != null) {
+                boolean found = findAndClick(child);
+                child.recycle(); // Nettoyage de chaque enfant visité
+                if (found) return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isMatch(String s) {
+        String t = s.toLowerCase();
+        return t.contains("écouter") || t.contains("listen") || t.contains("tts") || t.contains("vocal");
     }
 
     private void feedback(int tone, int ms) {
         if (toneGen != null) toneGen.startTone(tone, ms);
-        if (vibrator != null) vibrator.vibrate(ms);
+        // Sécurité supplémentaire : on vérifie que l'appli a le droit avant d'appeler
+        try { if (vibrator != null) vibrator.vibrate(ms); } catch (Exception e) {}
     }
 
     private void updateNotification(String title, String text) {
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CID)
-                .setSmallIcon(android.R.drawable.ic_btn_speak_now) // Icône micro/voix
+                .setSmallIcon(android.R.drawable.ic_btn_speak_now)
                 .setContentTitle(title)
                 .setContentText(text)
-                .setSubText("Écologie d'endroit") // Petite touche perso en haut
+                .setSubText("Écologie d'endroit")
                 .setPriority(NotificationCompat.PRIORITY_LOW)
-                .setCategory(NotificationCompat.CATEGORY_SERVICE)
                 .setOngoing(isWaiting);
         nm.notify(1, builder.build());
     }
@@ -92,7 +128,6 @@ public class GeminiWatcher extends AccessibilityService {
     private void createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel c = new NotificationChannel(CID, "Zen Watcher", NotificationManager.IMPORTANCE_LOW);
-            c.setDescription("Notifications apaisantes pour le Watcher");
             ((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).createNotificationChannel(c);
         }
     }

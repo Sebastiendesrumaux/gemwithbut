@@ -1,16 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.example.gemwithbut">
+
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <application android:label="gemwithbut" android:theme="@style/Theme.AppCompat.DayNight.NoActionBar">
+        
         <activity android:name=".gemwithbut" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <service android:name=".PlayerService" android:foregroundServiceType="mediaPlayback" android:exported="false" />
+
         <service android:name=".GeminiWatcher"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true">
@@ -19,5 +25,6 @@
             </intent-filter>
             <meta-data android:name="android.accessibilityservice" android:resource="@xml/accessibility_service_config" />
         </service>
+
     </application>
 </manifest>
