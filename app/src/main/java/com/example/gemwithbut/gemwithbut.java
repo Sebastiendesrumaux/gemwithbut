@@ -1,4 +1,4 @@
-package com.example.freqmul;
+package com.example.gemwithbut;
 
 import android.content.ComponentName;
 import android.content.Context;
@@ -20,8 +20,8 @@ import androidx.core.app.ActivityCompat;
 import android.Manifest;
 import java.util.ArrayList;
 
-public class freqmul extends AppCompatActivity {
-    private static final String PREFS_NAME = "freqmul_prefs";
+public class gemwithbut extends AppCompatActivity {
+    private static final String PREFS_NAME = "gemwithbut_prefs";
     private EditText editMulMin, editMulMax;
     private TextView textRootPath;
     private Button btnUpdateList;
@@ -99,7 +99,7 @@ public class freqmul extends AppCompatActivity {
                         // Cela évite le bug du bouton blanc "nu"
                         btnUpdateList.setBackgroundTintList(ColorStateList.valueOf(Color.parseColor("#455A64"))); 
                         refreshListFromService();
-                        Toast.makeText(freqmul.this, "Scan terminé : " + count + " fichiers.", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(gemwithbut.this, "Scan terminé : " + count + " fichiers.", Toast.LENGTH_SHORT).show();
                     });
                 }
             });
@@ -157,7 +157,7 @@ public class freqmul extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_freqmul);
+        setContentView(R.layout.activity_gemwithbut);
         
         ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
 

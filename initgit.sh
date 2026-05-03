@@ -8,7 +8,7 @@
 
 echo "utilise un token classique"
 set -e
-export nom="freqmul"
+export nom="gemwithbut"
 echo "[INIT] Initialisation du dépôt Git pour le projet"
 
 # Assurer que ce dossier est considéré comme safe par Git

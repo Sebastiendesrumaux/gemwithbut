@@ -1,4 +1,4 @@
-package com.example.freqmul;
+package com.example.gemwithbut;
 import android.content.Context;
 import android.view.Gravity;
 import android.view.ViewGroup;

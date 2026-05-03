@@ -1,4 +1,4 @@
-package com.example.freqmul;
+package com.example.gemwithbut;
 
 import android.app.*;
 import android.content.BroadcastReceiver;
@@ -148,10 +148,10 @@ public class PlayerService extends Service {
     public void setScanListener(ScanListener l) { this.scanListener = l; }
 
     public void showNotification(String message) {
-        Intent notificationIntent = new Intent(this, freqmul.class);
+        Intent notificationIntent = new Intent(this, gemwithbut.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
         Notification notification = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Bouddha Player")
+                .setContentTitle("gemwithbut")
                 .setContentText(message)
                 .setSmallIcon(android.R.drawable.ic_media_play)
                 .setContentIntent(pendingIntent)
@@ -161,7 +161,7 @@ public class PlayerService extends Service {
 
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Bouddha Player", NotificationManager.IMPORTANCE_LOW);
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "gemwithbut", NotificationManager.IMPORTANCE_LOW);
             getSystemService(NotificationManager.class).createNotificationChannel(channel);
         }
     }

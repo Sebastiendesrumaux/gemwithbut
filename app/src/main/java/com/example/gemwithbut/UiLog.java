@@ -1,4 +1,4 @@
-package com.example.freqmul;
+package com.example.gemwithbut;
 import android.app.Activity;
 import android.content.ClipboardManager;
 import android.content.ClipData;

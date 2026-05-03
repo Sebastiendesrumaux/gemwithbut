@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-  namespace "com.example.freqmul"
+  namespace "com.example.gemwithbut"
   compileSdk 34
 
   defaultConfig {
-    applicationId "com.example.freqmul"
+    applicationId "com.example.gemwithbut"
     minSdk 24
     targetSdk 34
     versionCode 1

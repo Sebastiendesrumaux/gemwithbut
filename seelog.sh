@@ -1,1 +1,1 @@
-tail -f /sdcard/Download/freqmul/log.txt
+tail -f /sdcard/Download/gemwithbut/log.txt

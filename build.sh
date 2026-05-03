@@ -30,7 +30,7 @@ fi
 
 echo "   APK trouvé : $APK_SRC"
 
-APK_DST="/storage/emulated/0/Download/bouddha-player-debug.apk"
+APK_DST="/storage/emulated/0/Download/gemwithbut-debug.apk"
 
 echo "▶️ Copie de $APK_SRC vers $APK_DST…"
 cp "$APK_SRC" "$APK_DST"

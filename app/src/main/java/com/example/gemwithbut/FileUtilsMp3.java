@@ -1,4 +1,4 @@
-package com.example.freqmul;
+package com.example.gemwithbut;
 
 import android.content.Context;
 import android.net.Uri;
@@ -11,7 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 
 public class FileUtilsMp3 {
-    public static final String SYNG_DIR = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/freqmul";
+    public static final String SYNG_DIR = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "/gemwithbut";
     public static final String LMP3_FILE = SYNG_DIR + "/lmp3.json";
 
     public static ArrayList<String> scanMp3(Context ctx, String treeUriStr) {

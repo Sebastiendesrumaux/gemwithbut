@@ -1,4 +1,4 @@
-package com.example.freqmul;
+package com.example.gemwithbut;
 
 import android.os.Environment;
 import java.io.File;
@@ -14,7 +14,7 @@ public class FileLogger {
 
     public static void log(android.content.Context context, String message) {
         try {
-            File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "freqmul");
+            File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "gemwithbut");
             if (!dir.exists()) dir.mkdirs();
             File currentFile = new File(dir, FILE_CURRENT);
             if (currentFile.exists() && currentFile.length() > MAX_SIZE) {
