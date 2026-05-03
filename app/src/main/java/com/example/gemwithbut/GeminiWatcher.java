@@ -28,7 +28,8 @@ public class GeminiWatcher extends AccessibilityService {
             lastMacroTimestamp = intent.getLongExtra("timestamp", 0);
             isWaiting = true;
             feedback(ToneGenerator.TONE_PROP_ACK, 60);
-            updateNotification("L'IA médite...", "Prends ton temps, le Watcher veille sur tes mots.");
+            updateNotification("L'IA médite...", "Le Watcher cherche le signal vocal.");
+            FileLogger.log(context, "📡 Intent START reçu : En attente du bouton...");
         }
     };
 
@@ -39,7 +40,7 @@ public class GeminiWatcher extends AccessibilityService {
         createChannel();
         
         IntentFilter filter = new IntentFilter("com.example.gemwithbut.START_WATCHING");
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             registerReceiver(macroReceiver, filter, Context.RECEIVER_EXPORTED);
         } else {
             registerReceiver(macroReceiver, filter);
@@ -49,6 +50,7 @@ public class GeminiWatcher extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
+        // On écoute tout : changement de fenêtre ou de contenu
         if (!isWaiting) return;
         
         AccessibilityNodeInfo root = getRootInActiveWindow();
@@ -57,7 +59,8 @@ public class GeminiWatcher extends AccessibilityService {
         if (findAndClick(root)) {
             isWaiting = false;
             feedback(ToneGenerator.TONE_CDMA_PIP, 120);
-            updateNotification("✨ Instant de clarté", "La voix de Gemini s'élève. Bonne écoute.");
+            updateNotification("✨ Instant de clarté", "Bouton détecté et cliqué !");
+            FileLogger.log(this, "✅ Bouton trouvé et cliqué automatiquement.");
             
             Intent ready = new Intent("com.example.gemwithbut.GEMINI_READY");
             ready.putExtra("original_timestamp", lastMacroTimestamp);
@@ -72,44 +75,46 @@ public class GeminiWatcher extends AccessibilityService {
         CharSequence text = node.getText();
         CharSequence desc = node.getContentDescription();
 
-        if ((text != null && isMatch(text.toString())) || (desc != null && isMatch(desc.toString()))) {
+        // On élargit les critères de détection (plus de synonymes)
+        if (isMatch(text) || isMatch(desc)) {
             if (node.isClickable()) {
                 node.performAction(AccessibilityNodeInfo.ACTION_CLICK);
                 return true;
             }
             AccessibilityNodeInfo parent = node.getParent();
             while (parent != null) {
-                boolean clicked = false;
                 if (parent.isClickable()) {
                     parent.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-                    clicked = true;
+                    parent.recycle();
+                    return true;
                 }
-                AccessibilityNodeInfo nextParent = parent.getParent();
-                parent.recycle(); // Nettoyage indispensable !
-                if (clicked) return true;
-                parent = nextParent;
+                AccessibilityNodeInfo oldParent = parent;
+                parent = parent.getParent();
+                oldParent.recycle();
             }
         }
 
         for (int i = 0; i < node.getChildCount(); i++) {
             AccessibilityNodeInfo child = node.getChild(i);
-            if (child != null) {
-                boolean found = findAndClick(child);
-                child.recycle(); // Nettoyage de chaque enfant visité
-                if (found) return true;
+            if (findAndClick(child)) {
+                if (child != null) child.recycle();
+                return true;
             }
+            if (child != null) child.recycle();
         }
         return false;
     }
 
-    private boolean isMatch(String s) {
-        String t = s.toLowerCase();
-        return t.contains("écouter") || t.contains("listen") || t.contains("tts") || t.contains("vocal");
+    private boolean isMatch(CharSequence cs) {
+        if (cs == null) return false;
+        String t = cs.toString().toLowerCase();
+        return t.contains("écouter") || t.contains("listen") || 
+               t.contains("tts") || t.contains("vocal") || 
+               t.contains("haut-parleur") || t.contains("speaker");
     }
 
     private void feedback(int tone, int ms) {
         if (toneGen != null) toneGen.startTone(tone, ms);
-        // Sécurité supplémentaire : on vérifie que l'appli a le droit avant d'appeler
         try { if (vibrator != null) vibrator.vibrate(ms); } catch (Exception e) {}
     }
 
