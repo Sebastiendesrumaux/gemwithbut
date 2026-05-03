@@ -21,29 +21,31 @@ public class GeminiWatcher extends AccessibilityService {
     private boolean isWaiting = false;
     private ToneGenerator toneGen;
     private Vibrator vibrator;
-    private static final String CID = "gem_watcher_channel";
+    private static final String CID = "gem_watcher_zen";
 
     private BroadcastReceiver macroReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             lastMacroTimestamp = intent.getLongExtra("timestamp", 0);
             isWaiting = true;
-            feedback(ToneGenerator.TONE_PROP_ACK, 100);
-            updateNotification("Monitoring Gemini...");
+            feedback(ToneGenerator.TONE_PROP_ACK, 60);
+            updateNotification("L'IA médite...", "Prends ton temps, le Watcher veille sur tes mots.");
         }
     };
 
     @Override
     protected void onServiceConnected() {
-        toneGen = new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100);
+        toneGen = new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 80);
         vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
         createChannel();
-        if (Build.VERSION.SDK_INT >= 34) {
-            registerReceiver(macroReceiver, new IntentFilter("com.example.gemwithbut.START_WATCHING"), Context.RECEIVER_EXPORTED);
+        
+        IntentFilter filter = new IntentFilter("com.example.gemwithbut.START_WATCHING");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            registerReceiver(macroReceiver, filter, Context.RECEIVER_EXPORTED);
         } else {
-            registerReceiver(macroReceiver, new IntentFilter("com.example.gemwithbut.START_WATCHING"));
+            registerReceiver(macroReceiver, filter);
         }
-        updateNotification("Watcher prêt");
+        updateNotification("Sentinelle active", "À l'écoute des murmures de la machine.");
     }
 
     @Override
@@ -54,8 +56,8 @@ public class GeminiWatcher extends AccessibilityService {
 
         if (findText(root, "Écouter la réponse") || findText(root, "Listen")) {
             isWaiting = false;
-            feedback(ToneGenerator.TONE_CDMA_PIP, 200);
-            updateNotification("✨ Réponse Gemini prête !");
+            feedback(ToneGenerator.TONE_CDMA_PIP, 120);
+            updateNotification("✨ Instant de clarté", "Gemini a terminé. Écoute quand tu seras prêt.");
             
             Intent intent = new Intent("com.example.gemwithbut.GEMINI_READY");
             intent.putExtra("original_timestamp", lastMacroTimestamp);
@@ -74,20 +76,23 @@ public class GeminiWatcher extends AccessibilityService {
         if (vibrator != null) vibrator.vibrate(ms);
     }
 
-    private void updateNotification(String text) {
+    private void updateNotification(String title, String text) {
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CID)
-                .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-                .setContentTitle("Gemini Watcher")
+                .setSmallIcon(android.R.drawable.ic_btn_speak_now) // Icône micro/voix
+                .setContentTitle(title)
                 .setContentText(text)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setSubText("Écologie d'endroit") // Petite touche perso en haut
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setCategory(NotificationCompat.CATEGORY_SERVICE)
                 .setOngoing(isWaiting);
         nm.notify(1, builder.build());
     }
 
     private void createChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel c = new NotificationChannel(CID, "Watcher", NotificationManager.IMPORTANCE_DEFAULT);
+            NotificationChannel c = new NotificationChannel(CID, "Zen Watcher", NotificationManager.IMPORTANCE_LOW);
+            c.setDescription("Notifications apaisantes pour le Watcher");
             ((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).createNotificationChannel(c);
         }
     }
