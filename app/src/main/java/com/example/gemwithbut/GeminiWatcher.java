@@ -108,7 +108,7 @@ public class GeminiWatcher extends AccessibilityService {
     private boolean isMatch(CharSequence cs) {
         if (cs == null) return false;
         String t = cs.toString().toLowerCase();
-        return t.contains("écouter") || t.contains("listen") || t.contains("tts") || t.contains("vocal");
+        return t.contains("écouter") || t.contains("listen");
     }
 
     private void feedback(int tone, int ms) {
