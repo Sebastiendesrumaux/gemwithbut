@@ -16,7 +16,7 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import androidx.core.app.NotificationCompat;
 
 public class GeminiWatcher extends AccessibilityService {
-    private enum State { IDLE, WAITING_FOR_PROMPT, WAITING_FOR_LISTEN, WAITING_FOR_COPY }
+    private enum State { IDLE, WAITING_FOR_ID, WAITING_FOR_LISTEN, WAITING_FOR_COPY }
     private State currentState = State.IDLE;
     private String targetId = "";
     private static final String TARGET_PKG = "com.google.android.googlequicksearchbox";
@@ -32,17 +32,154 @@ public class GeminiWatcher extends AccessibilityService {
             if ("com.example.gemwithbut.START_WATCHING".equals(action)) {
                 Object idExtra = intent.getExtras().get("target_id");
                 targetId = (idExtra != null) ? String.valueOf(idExtra) : "";
-                currentState = State.WAITING_FOR_PROMPT;
+                currentState = State.WAITING_FOR_ID;
                 feedback(ToneGenerator.TONE_PROP_ACK, 60);
-                FileLogger.log(context, "🎯 Sniper GoogleSearchBox activé pour ID : " + targetId);
-                updateNotification("Sniper Actif", "Traque de l'ID [" + targetId + "]");
+                FileLogger.log(context, "🎯 Sniper activé pour [#" + targetId + "]");
+                updateNotification("Sniper Actif", "Cible : [#" + targetId + "]");
             } else if ("com.example.gemwithbut.STOP_WATCHING".equals(action)) {
                 resetWatcher();
                 feedback(ToneGenerator.TONE_PROP_NACK, 150);
-                FileLogger.log(context, "🛑 Sniper désactivé manuellement.");
             }
         }
     };
+
+    @Override
+    public void onAccessibilityEvent(AccessibilityEvent event) {
+        if (currentState == State.IDLE) return;
+        
+        CharSequence pkg = event.getPackageName();
+        if (pkg != null && !TARGET_PKG.equals(pkg.toString())) return;
+
+        AccessibilityNodeInfo root = getRootInActiveWindow();
+        if (root == null) return;
+
+        try {
+            AccessibilityNodeInfo anchor = findNodeWithText(root, "[#" + targetId);
+            if (anchor == null) return;
+
+            AccessibilityNodeInfo rowNode = findChildOfRecyclerView(anchor);
+            if (rowNode != null) {
+                AccessibilityNodeInfo recyclerView = rowNode.getParent();
+                if (recyclerView != null) {
+                    processStateLogic(recyclerView, rowNode);
+                    recyclerView.recycle();
+                }
+                rowNode.recycle();
+            }
+            anchor.recycle();
+            
+        } finally {
+            root.recycle();
+        }
+    }
+
+    private void processStateLogic(AccessibilityNodeInfo list, AccessibilityNodeInfo anchorRow) {
+        boolean foundAnchor = false;
+        
+        for (int i = 0; i < list.getChildCount(); i++) {
+            AccessibilityNodeInfo child = list.getChild(i);
+            if (child == null) continue;
+
+            if (!foundAnchor) {
+                // Utilisation de equals() pour la comparaison de nodes
+                if (child.equals(anchorRow)) {
+                    foundAnchor = true;
+                }
+            }
+
+            if (foundAnchor) {
+                if (currentState == State.WAITING_FOR_ID || currentState == State.WAITING_FOR_LISTEN) {
+                    AccessibilityNodeInfo btn = findButtonByKeyword(child, "écouter", "listen", "lire");
+                    if (btn != null) {
+                        if (performClick(btn)) {
+                            currentState = State.WAITING_FOR_COPY;
+                            feedback(ToneGenerator.TONE_PROP_BEEP, 80);
+                            FileLogger.log(getApplicationContext(), "🔊 Audio lancé.");
+                        }
+                        btn.recycle();
+                        child.recycle();
+                        return;
+                    }
+                }
+
+                if (currentState == State.WAITING_FOR_COPY) {
+                    AccessibilityNodeInfo btn = findButtonByKeyword(child, "copier", "copy");
+                    if (btn != null) {
+                        if (performClick(btn)) {
+                            feedback(ToneGenerator.TONE_CDMA_PIP, 120);
+                            FileLogger.log(getApplicationContext(), "📋 Copie réussie !");
+                            resetWatcher();
+                        }
+                        btn.recycle();
+                        child.recycle();
+                        return;
+                    }
+                }
+            }
+            child.recycle();
+        }
+    }
+
+    private AccessibilityNodeInfo findChildOfRecyclerView(AccessibilityNodeInfo node) {
+        AccessibilityNodeInfo current = AccessibilityNodeInfo.obtain(node);
+        while (current != null) {
+            AccessibilityNodeInfo parent = current.getParent();
+            if (parent != null) {
+                CharSequence className = parent.getClassName();
+                if (className != null && className.toString().contains("RecyclerView")) {
+                    parent.recycle();
+                    return current;
+                }
+                current.recycle();
+                current = parent;
+            } else {
+                if (current != null) current.recycle();
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private AccessibilityNodeInfo findNodeWithText(AccessibilityNodeInfo node, String text) {
+        if (node == null) return null;
+        if (node.getText() != null && node.getText().toString().contains(text)) return AccessibilityNodeInfo.obtain(node);
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            AccessibilityNodeInfo found = findNodeWithText(child, text);
+            if (child != null) child.recycle();
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private AccessibilityNodeInfo findButtonByKeyword(AccessibilityNodeInfo node, String... keys) {
+        if (node == null) return null;
+        String desc = (node.getContentDescription() != null) ? node.getContentDescription().toString().toLowerCase() : "";
+        String text = (node.getText() != null) ? node.getText().toString().toLowerCase() : "";
+        
+        for (String key : keys) {
+            if (desc.contains(key) || text.contains(key)) return AccessibilityNodeInfo.obtain(node);
+        }
+        
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            AccessibilityNodeInfo found = findButtonByKeyword(child, keys);
+            if (child != null) child.recycle();
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private boolean performClick(AccessibilityNodeInfo node) {
+        if (node.isClickable() && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true;
+        AccessibilityNodeInfo p = node.getParent();
+        if (p != null) {
+            boolean res = p.isClickable() && p.performAction(AccessibilityNodeInfo.ACTION_CLICK);
+            p.recycle();
+            return res;
+        }
+        return false;
+    }
 
     private void resetWatcher() {
         currentState = State.IDLE;
@@ -50,108 +187,9 @@ public class GeminiWatcher extends AccessibilityService {
         updateNotification("Zen Watcher", "Prêt (Repos)");
     }
 
-    @Override
-    public void onAccessibilityEvent(AccessibilityEvent event) {
-        if (currentState == State.IDLE) return;
-
-        // Filtrage strict sur l'application Google
-        CharSequence pkg = event.getPackageName();
-        if (pkg == null || !TARGET_PKG.equals(pkg.toString())) return;
-
-        AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (root == null) return;
-
-        switch (currentState) {
-            case WAITING_FOR_PROMPT:
-                // Basé sur ton DOM : le prompt est dans un EditText ou TextView
-                if (containsText(root, "[#" + targetId + "#]")) {
-                    currentState = State.WAITING_FOR_LISTEN;
-                    FileLogger.log(getApplicationContext(), "✅ Prompt identifié. En attente de l'audio...");
-                }
-                break;
-
-            case WAITING_FOR_LISTEN:
-                // Basé sur ton DOM : Button avec desc "Écouter"
-                AccessibilityNodeInfo listenBtn = findNode(root, "android.widget.Button", "Écouter");
-                if (listenBtn != null) {
-                    if (performClick(listenBtn)) {
-                        currentState = State.WAITING_FOR_COPY;
-                        feedback(ToneGenerator.TONE_PROP_BEEP, 80);
-                        FileLogger.log(getApplicationContext(), "🔊 Clic Écouter réussi.");
-                    }
-                    listenBtn.recycle();
-                }
-                break;
-
-            case WAITING_FOR_COPY:
-                // Basé sur ton DOM : Button "Copier" dans un HorizontalScrollView
-                AccessibilityNodeInfo copyBtn = findCopyButton(root);
-                if (copyBtn != null) {
-                    if (performClick(copyBtn)) {
-                        feedback(ToneGenerator.TONE_CDMA_PIP, 120);
-                        FileLogger.log(getApplicationContext(), "📋 Réponse copiée. Mission terminée.");
-                        resetWatcher();
-                    }
-                    copyBtn.recycle();
-                }
-                break;
-        }
-        root.recycle();
-    }
-
-    private AccessibilityNodeInfo findNode(AccessibilityNodeInfo node, String className, String desc) {
-        if (node == null) return null;
-        if (className.equals(node.getClassName()) && 
-            node.getContentDescription() != null && 
-            node.getContentDescription().toString().equalsIgnoreCase(desc)) {
-            return node;
-        }
-        for (int i = 0; i < node.getChildCount(); i++) {
-            AccessibilityNodeInfo found = findNode(node.getChild(i), className, desc);
-            if (found != null) return found;
-        }
-        return null;
-    }
-
-    private AccessibilityNodeInfo findCopyButton(AccessibilityNodeInfo node) {
-        if (node == null) return null;
-        // On cherche le bouton Copier
-        if ("android.widget.Button".equals(node.getClassName()) && 
-            node.getContentDescription() != null && 
-            node.getContentDescription().toString().equalsIgnoreCase("Copier")) {
-            
-            // Vérification du parent : doit être dans la zone de défilement horizontale des actions
-            AccessibilityNodeInfo parent = node.getParent();
-            if (parent != null && "android.widget.HorizontalScrollView".equals(parent.getClassName())) {
-                return node;
-            }
-            if (parent != null) parent.recycle();
-        }
-        for (int i = 0; i < node.getChildCount(); i++) {
-            AccessibilityNodeInfo found = findCopyButton(node.getChild(i));
-            if (found != null) return found;
-        }
-        return null;
-    }
-
-    private boolean containsText(AccessibilityNodeInfo node, String text) {
-        if (node == null) return false;
-        if (node.getText() != null && node.getText().toString().contains(text)) return true;
-        for (int i = 0; i < node.getChildCount(); i++) {
-            if (containsText(node.getChild(i), text)) return true;
-        }
-        return false;
-    }
-
-    private boolean performClick(AccessibilityNodeInfo node) {
-        if (node.isClickable() && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true;
-        AccessibilityNodeInfo p = node.getParent();
-        return (p != null && p.isClickable()) && p.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-    }
-
     private void feedback(int tone, int ms) {
         if (toneGen != null) toneGen.startTone(tone, ms);
-        if (vibrator != null) try { vibrator.vibrate(ms); } catch (Exception e) {}
+        if (vibrator != null) try { vibrator.vibrate(ms); } catch(Exception e) {}
     }
 
     private void updateNotification(String title, String text) {
@@ -176,7 +214,7 @@ public class GeminiWatcher extends AccessibilityService {
         } else {
             registerReceiver(watcherReceiver, filter);
         }
-        FileLogger.log(this, "🚀 Sniper Gemini (com.google.android.googlequicksearchbox) prêt.");
+        FileLogger.log(this, "🚀 Sniper Gemini corrigé prêt.");
     }
 
     private void createChannel() {
@@ -185,11 +223,5 @@ public class GeminiWatcher extends AccessibilityService {
             ((NotificationManager)getSystemService(NOTIFICATION_SERVICE)).createNotificationChannel(c);
         }
     }
-
     @Override public void onInterrupt() {}
-    @Override public void onDestroy() {
-        if (toneGen != null) toneGen.release();
-        try { unregisterReceiver(watcherReceiver); } catch (Exception e) {}
-        super.onDestroy();
-    }
 }
